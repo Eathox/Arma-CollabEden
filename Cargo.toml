@@ -1,0 +1,26 @@
+[package]
+name = "collab_eden"
+version = "0.1.0"
+edition = "2021"
+authors = ["Eathox"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+log = { version = "0.4.20", features = ["std"] }
+strum = { version = "0.25.0", features = ["derive"] }
+serde = { version = "1.0.188", features = ["derive"] }
+serde_json = "1.0.107"
+# bincode = "1.3.3" // Prefer to use bincode but arma-rs forces untagged on its Value
+arma-rs = { version = "1.10.5", features = ["serde"] }
+thiserror = "1.0.48"
+message-io = { version = "0.18.0", default-features = false, features = [
+    "tcp",
+] }
+local-ip-address = "0.5.5"
+crossbeam-channel = "0.5.8"
+
+
+# [dev-dependencies]
+# pretty_assertions = "1.2.x"

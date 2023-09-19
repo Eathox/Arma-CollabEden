@@ -1,0 +1,12 @@
+name = "collab_eden"
+author = "Eathox"
+prefix = "coe"
+mainprefix = "z"
+
+[files]
+include = ["*.dll", "*.so", "*.paa"]
+
+[hemtt.launch]
+workshop = [
+    "450814997", # CBA_A3's Workshop ID
+]
