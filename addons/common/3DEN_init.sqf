@@ -4,7 +4,7 @@
 params ["_display"];
 
 uiNameSpace setVariable [QGVAR(3DENDisplay), _display];
-_display setVariable [QGVAR(detectEntityEventsPrev), []];
+_display setVariable [QGVAR(detectEntityEvents_prevEntities), []];
 
 _display displayAddEventHandler ["UnLoad", {
     uiNameSpace setVariable [QGVAR(3DENDisplay), nil];
@@ -13,7 +13,6 @@ _display displayAddEventHandler ["UnLoad", {
 add3DENEventHandler ["OnUndo", FUNC(detectEntityEvents)];
 add3DENEventHandler ["OnRedo", FUNC(detectEntityEvents)];
 add3DENEventHandler ["OnHistoryChange", FUNC(detectEntityEvents)];
-
 // Required as these don't trigger OnHistoryChange, tracking issue: https://feedback.bistudio.com/T175680
 add3DENEventHandler ["OnPaste", FUNC(detectEntityEvents)];
 add3DENEventHandler ["OnPasteUnitOrig", FUNC(detectEntityEvents)];

@@ -1,6 +1,7 @@
 #define MAINPREFIX z
 #define PREFIX coe
 
+// #define IS_RELEASE_BUILD // Only defined in release builds (automatically set by HEMTT)
 #define EXT "collab_eden"
 
 #include "script_version.hpp"

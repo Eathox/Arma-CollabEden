@@ -5,7 +5,7 @@ use message_io::network::ResourceId;
 
 use crate::CurrentHandler;
 
-const CALLBACK_NAME: &str = "collab_eden";
+pub const CALLBACK_NAME: &str = "collab_eden";
 
 #[derive(strum::IntoStaticStr)]
 pub enum Callback {
@@ -17,7 +17,7 @@ pub enum Callback {
     ClientConnected(bool),
     ClientDisconnected(bool),
 
-    RemoteEvent(String, Value),
+    ReceivedEvent(String, Value),
 }
 
 /// QOL macro that calls `to_arma` on each entry
@@ -41,6 +41,7 @@ impl Callback {
     }
 
     #[must_use]
+    // TODO impl intoArma instead
     pub fn data(self) -> (String, Vec<Value>) {
         (
             self.event_name(),
@@ -53,7 +54,7 @@ impl Callback {
                     value_vec![succeeded]
                 }
                 Self::ClientDisconnected(lost_connection) => value_vec![lost_connection],
-                Self::RemoteEvent(event, data) => vec![event.to_arma(), data],
+                Self::ReceivedEvent(event, data) => vec![event.to_arma(), data],
             },
         )
     }

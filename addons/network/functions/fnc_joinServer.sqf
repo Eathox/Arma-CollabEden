@@ -5,8 +5,7 @@ params [
     ["_port", GVAR(defaultPort), [""]]
 ];
 
-if !is3DEN exitWith {false};
-if (_ip isEqualTo "") exitWith {false};
+if (!is3DEN || {_ip == "" || _port == ""}) exitWith {false};
 
 private _result = ["join", [_ip, _port]] call FUNC(callExtension);
 !isNil "_result"

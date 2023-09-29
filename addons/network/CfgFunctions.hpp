@@ -6,10 +6,11 @@ class CfgFunctions {
             PATHTO_FNC(stopNetworkInstance);
             PATHTO_FNC(isNetworkInstanceActive);
 
-            PATHTO_FNC(addSyncEventHandler);
-            PATHTO_FNC(callSyncEventHandler);
-            PATHTO_FNC(broadcastEvent);
-            PATHTO_FNC(blockEventBroadcast);
+            PATHTO_FNC(addReceivedEventHandler);
+            PATHTO_FNC(addSendEventHandler);
+            PATHTO_FNC(callSendEventHandler);
+            PATHTO_FNC(blockSendEventHandler);
+            PATHTO_FNC(sendEvent);
         };
     };
 };

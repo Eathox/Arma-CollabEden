@@ -5,7 +5,7 @@ params [
     ["_port", GVAR(defaultPort), [""]]
 ];
 
-if !is3DEN exitWith {false};
+if (!is3DEN || {_ip == "" || _port == ""}) exitWith {false};
 
 private _result = ["host", [_ip, _port]] call FUNC(callExtension);
 !isNil "_result"

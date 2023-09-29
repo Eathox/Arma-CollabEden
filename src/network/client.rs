@@ -9,6 +9,7 @@ use super::{deserialize_message, Handler, NetworkInterface, ServerMessage};
 use crate::{Callback, Error, Result};
 
 // TODO: add more boilerplate messages like one to send before disconnecting, to determent if a connection is lost or was willingly disconnected
+// TODO: add support fot checking addons are the same between clients
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum ClientMessage {
     Ping,
@@ -85,7 +86,7 @@ impl Client {
             ServerMessage::Ping => self.send_message(self.server, ClientMessage::Pong),
             ServerMessage::Pong => {}
             ServerMessage::ArmaEvent(event, data) => {
-                self.callback(Callback::RemoteEvent(event, data));
+                self.callback(Callback::ReceivedEvent(event, data));
             }
         }
     }

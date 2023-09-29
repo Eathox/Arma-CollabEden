@@ -12,6 +12,7 @@ class CfgPatches {
 
         units[] = {};
         weapons[] = {};
+        is3DENmod = 1;
     };
 };
 

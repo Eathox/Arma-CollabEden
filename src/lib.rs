@@ -6,6 +6,14 @@
 #[macro_use]
 extern crate log;
 
+// TODO:
+// document everything (withing reason)
+// big refactor make this a library with two bins: arma extension and standalone cli/app
+// add translation/conversion table of entity ids
+// allow three instance types, client only, server only (standalone from arma), client and server (local host)
+// Aim for setup where all clients connect to same server, need to origin of arma event to do id translation
+// Allow for different session on server only hosting
+
 use std::net::{IpAddr, SocketAddr};
 use std::sync::{Arc, Mutex};
 
@@ -20,7 +28,7 @@ mod error;
 mod logger;
 mod network;
 
-pub use callback::Callback;
+pub use callback::{Callback, CALLBACK_NAME};
 pub use error::{Error, Result};
 use network::{client, server};
 pub use network::{ClientSignal, NetworkHandler, ServerSignal};

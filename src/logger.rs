@@ -1,7 +1,7 @@
 use arma_rs::Context;
 use log::{Level, Metadata, Record};
 
-const CALLBACK_NAME_LOGGER: &str = "collab_eden_log";
+use crate::CALLBACK_NAME;
 
 /// Logger implementation for Arma, performs callback for each log message
 pub struct ArmaLogger {
@@ -17,9 +17,13 @@ impl log::Log for ArmaLogger {
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
             let _ = self.context.callback_data(
-                CALLBACK_NAME_LOGGER,
-                record.level().as_str(),
-                vec![record.target().to_string(), record.args().to_string()],
+                CALLBACK_NAME,
+                "log",
+                vec![
+                    record.target().to_string(),
+                    record.level().to_string(),
+                    record.args().to_string(),
+                ],
             );
         }
     }

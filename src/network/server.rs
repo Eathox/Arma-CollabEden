@@ -9,6 +9,7 @@ use super::{deserialize_message, ClientMessage, Handler, NetworkInterface};
 use crate::{Callback, Error, Result};
 
 // TODO: add more boilerplate messages like one to send before disconnecting, to determent if a connection is lost or was willingly disconnected
+// TODO: add support fot checking addons are the same between clients
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum ServerMessage {
     Ping,
@@ -82,7 +83,7 @@ impl Server {
             ClientMessage::Ping => self.send_message(client, ServerMessage::Pong),
             ClientMessage::Pong => {}
             ClientMessage::ArmaEvent(event, data) => {
-                self.callback(Callback::RemoteEvent(event.clone(), data.clone()));
+                self.callback(Callback::ReceivedEvent(event.clone(), data.clone()));
 
                 // TODO: dont directly send arma events to clients. Works fine with 2 instances. But with more the translation tables will be fucked
                 self.handler
