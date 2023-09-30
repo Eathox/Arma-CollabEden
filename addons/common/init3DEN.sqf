@@ -9,8 +9,6 @@ _display displayAddEventHandler ["UnLoad", {
 }];
 
 _display setVariable [QGVAR(detectEntityEvents_prevEntities), []];
-call FUNC(preloadAttributes);
-call FUNC(preloadMissionAttributes);
 
 add3DENEventHandler ["OnUndo", FUNC(detectEntityEvents)];
 add3DENEventHandler ["OnRedo", FUNC(detectEntityEvents)];

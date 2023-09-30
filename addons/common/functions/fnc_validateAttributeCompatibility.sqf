@@ -119,7 +119,7 @@ _waypointClasses = flatten (_waypointClasses apply {
         };
 
         if (_attributeMirrorIndex == -1) then {
-            WARNING_2("Module %1 uses both attributes but is missing mirror for: %2 argument!", _moduleName, _argumentClass);
+            WARNING_2("Module %1 uses attributes but is missing mirror for: %2 argument!", _moduleName, _argumentClass);
         };
     } foreach _arguments;
 } foreach _logicClasses;
