@@ -16,23 +16,22 @@ private _duplicateCheck = {
 
     {
         private _controlConfig = _x call _getAttributeControlConfig;
-        private _checkDuplicate = getNumber (_controlConfig >> QGVARMAIN(skipDuplicateCheck));
-        if (_checkDuplicate == 1) then {continue};
+        private _skipCheckDuplicate = getNumber (_controlConfig >> QGVARMAIN(skipDuplicateCheck));
 
         private _name = _x call FUNC(getAttributeName);
         private _lowerName = toLower _name;
 
-        if !(_lowerName in _knownMap) then {
-            _knownMap set [_lowerName, _x];
-        } else {
-            private _knownCfg = _knownMap get _lowerName;
+        if (_lowerName in _knownMap && _skipCheckDuplicate != 1) then {
+            private _knownConfig = _knownMap get _lowerName;
             ERROR_4(
                 "Attribute %1-%2 is used by multiple attributes! %3 & %4",
                 _typeName,
                 _name,
-                _knownCfg call _formatAttributePath,
+                _knownConfig call _formatAttributePath,
                 _x call _formatAttributePath
-            );
+                );
+        } else {
+            _knownMap set [_lowerName, _x];
         };
     } foreach _attributes;
 };
