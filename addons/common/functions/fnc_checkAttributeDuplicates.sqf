@@ -1,10 +1,5 @@
 #include "script_component.hpp"
 
-INFO("Validating attribute compatibility.");
-
-private _timeStart = diag_tickTime;
-private _cfg3DEN = configFile >> "Cfg3DEN";
-
 private _formatAttributePath = {
     private _parents = configHierarchy _this;
     private _parentName = configName (_parents select -3);
@@ -13,10 +8,9 @@ private _formatAttributePath = {
 
 private _getAttributeControlConfig = {
     private _controlClass = getText (_this >> "Control");
-    _cfg3DEN >> "Attributes" >> _controlClass;
+    configFile >> "Cfg3DEN" >> "Attributes" >> _controlClass;
 };
 
-// Duplicate attribute properties
 private _duplicateCheck = {
     params ["_typeName", "_attributes", ["_knownMap", createHashMap]];
 
@@ -25,17 +19,17 @@ private _duplicateCheck = {
         private _checkDuplicate = getNumber (_controlConfig >> QGVARMAIN(skipDuplicateCheck));
         if (_checkDuplicate == 1) then {continue};
 
-        private _property = _x call FUNC(getAttributeProperty);
-        private _lowerProperty = toLower _property;
+        private _name = _x call FUNC(getAttributeName);
+        private _lowerName = toLower _name;
 
-        if !(_lowerProperty in _knownMap) then {
-            _knownMap set [_lowerProperty, _x];
+        if !(_lowerName in _knownMap) then {
+            _knownMap set [_lowerName, _x];
         } else {
-            private _knownCfg = _knownMap get _lowerProperty;
+            private _knownCfg = _knownMap get _lowerName;
             ERROR_4(
-                "Property %1-%2 is used by multiple attributes! %3 & %4",
+                "Attribute %1-%2 is used by multiple attributes! %3 & %4",
                 _typeName,
-                _property,
+                _name,
                 _knownCfg call _formatAttributePath,
                 _x call _formatAttributePath
             );
@@ -52,14 +46,14 @@ _waypointClasses = flatten (_waypointClasses apply {
     configProperties [_x, "isClass _x"];
 });
 
+private _cfg3DEN = configFile >> "Cfg3DEN";
 {
     _x params ["_generalConfig", "_classes"];
 
     private _categories = configProperties [_generalConfig >> "AttributeCategories", "isClass _x"];
-    private _generalAttributes = _categories apply {
+    private _generalAttributes = flatten (_categories apply {
         configProperties [_x >> "Attributes", "isClass _x"];
-    };
-    _generalAttributes = flatten _generalAttributes;
+    });
 
     // General attributes
     [configName _generalConfig, _generalAttributes] call _duplicateCheck;
@@ -67,8 +61,8 @@ _waypointClasses = flatten (_waypointClasses apply {
     // Specific attributes ignoring general attributes conflicts
     if (_classes isEqualTo []) then {continue};
     private _knownMap = createHashMapFromArray (_generalAttributes apply {
-        private _property = _x call FUNC(getAttributeProperty);
-        [toLower _property, _x]
+        private _name = _x call FUNC(getAttributeName);
+        [toLower _name, _x]
     });
 
     private _isLogic = (_generalConfig == (_cfg3DEN >> "Logic"));
@@ -78,51 +72,23 @@ _waypointClasses = flatten (_waypointClasses apply {
         if (!_isLogic && _hasNoAttributes) then {continue};
 
         if _isLogic then {
-            if _hasNoAttributes then {
+            _specificAttributes = if _hasNoAttributes then {
                 // Some (older) modules have no attributes they use arguments instead
-                _specificAttributes = configProperties [_x >> "Arguments", "isClass _x"];
+                configProperties [_x >> "Arguments", "isClass _x"];
             } else {
-                // Some module attributes are controls and not actual attributes
-                _specificAttributes = _specificAttributes select {isText (_x >> "property") || isText (_x >> "data")};
+                // Modules which have both attributes and arguments tend to have controls mixed in with the attributes
+                _specificAttributes select {isText (_x >> "property") || isText (_x >> "data")};
             };
         };
         [configName _x, _specificAttributes, +_knownMap] call _duplicateCheck;
     } foreach _classes;
 } foreach [
-    _cfg3DEN >> "Group",
-    _cfg3DEN >> "Layer",
-    _cfg3DEN >> "Comment",
     [_cfg3DEN >> "Object", _nonLogicClasses],
+    _cfg3DEN >> "Group",
+    [_cfg3DEN >> "Trigger", "true" configClasses (configFile >> "CfgNonAIVehicles")],
     [_cfg3DEN >> "Logic", _logicClasses],
     [_cfg3DEN >> "Waypoint", _waypointClasses],
-    [_cfg3DEN >> "Trigger", "true" configClasses (configFile >> "CfgNonAIVehicles")],
-    [_cfg3DEN >> "Marker", "true" configClasses (configFile >> "CfgMarkers")]
+    [_cfg3DEN >> "Marker", "true" configClasses (configFile >> "CfgMarkers")],
+    _cfg3DEN >> "Layer",
+    _cfg3DEN >> "Comment"
 ] + ("true" configClasses (_cfg3DEN >> "Mission"));
-
-// Missing argument mirroring
-{
-    private _arguments = configProperties [_x >> "Arguments", "isClass _x"];
-    if (_arguments isEqualTo []) then {continue};
-
-    private _attributes = configProperties [_x >> "Attributes", "isClass _x"];
-    if (_attributes isEqualTo []) then {continue};
-
-    // These modules tend to have controls mixed in with attributes, dunno why
-    _attributes = _attributes select {isText (_x >> "property") || isText (_x >> "data")};
-
-    private _moduleName = configName _x;
-    {
-        private _argumentClass = configName _x;
-        private _argumentProperty = _x call FUNC(getAttributeProperty);
-        private _attributeMirrorIndex = _attributes findIf {
-            _argumentClass == configName _x || {_argumentProperty == _x call FUNC(getAttributeProperty)}
-        };
-
-        if (_attributeMirrorIndex == -1) then {
-            WARNING_2("Module %1 uses attributes but is missing mirror for: %2 argument!", _moduleName, _argumentClass);
-        };
-    } foreach _arguments;
-} foreach _logicClasses;
-
-private _duration = round ((diag_tickTime - _timeStart) * 1000);
-INFO_1("Finished validating. Time: %1 ms", _duration);

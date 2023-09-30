@@ -4,7 +4,7 @@
 
 params ["_display"];
 
-// TODO: support phase selection, till then disable it
+// TODO: support phase selection, till then disable it (there's also a switch under edit, disable that to)
 (_display displayCtrl IDC_DISPLAY3DEN_TOOLBAR_WORKSPACE) ctrlEnable false;
 
 _display setVariable [QGVAR(currentInstance), 0]; // 0 = None, 1 = Server, 2 = Client

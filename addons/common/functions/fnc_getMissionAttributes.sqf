@@ -2,19 +2,35 @@
 
 params [
     ["_section", "", [""]],
-    ["_category", "", [""]]
+    ["_categoryFilter", "", ["", []]]
 ];
 
-private _allAttributes = [_section, _category] call FUNC(getMissionAttributeClasses);
-private _properties = _allAttributes apply {_x call FUNC(getAttributeProperty)};
-private _values = _properties apply {
-    (_section get3DENMissionAttribute _x) params ["_value"];
-    if (isNil "_value") then {
-        WARNING_1("Nil attribute: '%1'.", _x); // DEBUG
-        "" // TODO: figure out good default value, attributes cant store nil
+private _cache = uiNamespace getVariable QGVAR(missionAttributes);
+
+private _allCategories = _cache get toLower _section;
+if (isNil "_allCategories") exitWith {[]};
+
+if (_categoryFilter isEqualType "") then {
+    _categoryFilter = if (_categoryFilter isEqualTo "") then {
+        keys _allCategories;
     } else {
-        _value
+        [_categoryFilter];
     };
 };
+_categoryFilter = _categoryFilter apply {toLower _x};
 
-_properties createHashMapFromArray _values
+private _names = [];
+{
+    private _category = toLower _x;
+    if (_category in _categoryFilter) then {
+        _names append _y;
+    };
+} foreach _allCategories;
+
+private _values = _names apply {
+    (_section get3DENMissionAttribute _x) params ["_value"];
+    if (isNil "_value") then {WARNING_1("Nil attribute: %1.", _x)}; // DEBUG
+    _value
+};
+
+_names createHashMapFromArray _values
