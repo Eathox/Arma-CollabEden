@@ -4,11 +4,13 @@
 params ["_display"];
 
 uiNameSpace setVariable [QGVAR(3DENDisplay), _display];
-_display setVariable [QGVAR(detectEntityEvents_prevEntities), []];
-
 _display displayAddEventHandler ["UnLoad", {
     uiNameSpace setVariable [QGVAR(3DENDisplay), nil];
 }];
+
+_display setVariable [QGVAR(detectEntityEvents_prevEntities), []];
+call FUNC(preloadAttributes);
+call FUNC(preloadMissionAttributes);
 
 add3DENEventHandler ["OnUndo", FUNC(detectEntityEvents)];
 add3DENEventHandler ["OnRedo", FUNC(detectEntityEvents)];

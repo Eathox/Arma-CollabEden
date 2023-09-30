@@ -2,7 +2,7 @@
 
 // Arma doesn't compile functions with recompile = 1 when entering Eden
 // This is a patch job solution to make sure that they are recompiled
-INFO("recompiling functions for use in 3DEN");
+INFO("Recompiling functions for use in 3DEN.");
 {
     {
         private _name = format [QFUNC(%1), configName _x];

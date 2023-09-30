@@ -5,13 +5,15 @@ class CfgFunctions {
             PATHTO_FNC(callExtension);
             PATHTO_FNC(getEntityType);
             PATHTO_FNC(getAttributeClasses);
-            PATHTO_FNC(getAttributeName);
+            PATHTO_FNC(getAttributeProperty);
             PATHTO_FNC(getAttributes);
             PATHTO_FNC(getMissionAttributeClasses);
             PATHTO_FNC(getMissionAttributes);
             PATHTO_FNC(addEventHandler);
             PATHTO_FNC(callEventHandler);
             PATHTO_FNC(detectEntityEvents);
+
+            PATHTO_FNC(validateAttributeCompatibility);
         };
     };
 };

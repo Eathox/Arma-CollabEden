@@ -6,7 +6,7 @@ params [
     ["_logError", true, [false]]
 ];
 
-if (_function == "") exitWith {ERROR("No function specified")};
+if (_function == "") exitWith {ERROR("No function specified.")};
 
 if (isNil "_params") then {
     LOG_1("Calling extension '%1'", _function);
@@ -32,7 +32,7 @@ if (_error + _code != 0) exitWith {
         case "9": {_result};
         default {format ["unknown error %1", _code]};
     };
-    ERROR_2("callExtension '%1': %2", _function, _message);
+    ERROR_2("callExtension '%1': %2.", _function, _message);
 };
 
 _result

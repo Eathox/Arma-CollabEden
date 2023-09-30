@@ -38,7 +38,7 @@ if (_includeSpecific && _hasSpecific) then {
         };
         case "MARKER": {
             (_entity get3DENAttribute "markerType") params ["_markerType"];
-            if (_markerType isNotEqualTo -1) exitWith {configNull}; // Area markers have no specific attributes
+            if (_markerType isNotEqualTo -1) exitWith {configNull}; // Area markers can't have specific attributes
 
             (_entity get3DENAttribute "ItemClass") params ["_class"];
             configFile >> "CfgMarkers" >> _class;

@@ -4,7 +4,7 @@
 // So instead we have to detect and fire entity created/deleted ourself.
 
 private _display = call FUNC(get3DENDisplay);
-if (isNull _display) exitWith {ERROR("Failed to get 3DEN display")};
+if (isNull _display) exitWith {ERROR("Failed to get 3DEN display.")};
 
 (_display getVariable QGVAR(detectEntityEvents_prevEntities)) params [
     ["_prevObjects", []],
@@ -31,16 +31,17 @@ _curEntities params [
     "_curComments"
 ];
 
-private ["_deleted", "_created"];
 private _fireEvents = {
     params ["_cur", "_prev", "_typeName"];
     private _shared = _cur arrayIntersect _prev;
-    _deleted = _prev - _shared;
-    _created = _cur - _shared;
+    private _created = _cur - _shared;
+    private _deleted = _prev - _shared;
+    if (_created isEqualTo [] && {_deleted isEqualTo []}) exitWith {};
 
     private _deletedEHName = format [QGVAR(%1Deleted), _typeName];
-    private _createdEHName = format [QGVAR(%1Created), _typeName];
     {[_deletedEHName, _x] call FUNC(callEventHandler)} foreach _deleted;
+
+    private _createdEHName = format [QGVAR(%1Created), _typeName];
     {[_createdEHName, _x] call FUNC(callEventHandler)} foreach _created;
 };
 

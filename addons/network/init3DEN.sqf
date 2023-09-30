@@ -90,6 +90,7 @@ private _setInstanceNone = {
     delete3DENEntities [_id];
 }] call FUNC(addReceivedEventHandler);
 
+// TODO: think about what data needs to be sent, i.e: dont need to send an attribute that wasn't changed
 [QGVAR(objectDragged), {
     params ["_eventName", "_object"];
 
