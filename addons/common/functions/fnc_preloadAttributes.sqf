@@ -2,7 +2,7 @@
 
 private _entityCache = uiNamespace getVariable QGVAR(entityAttributes);
 private _missionCache = uiNamespace getVariable QGVAR(missionAttributes);
-if !(isNil "_entityCache" && isNil "_missionCache") exitWith {
+if (!isNil "_entityCache" && !isNil "_missionCache") exitWith {
     INFO("3DEN attributes already preloaded.");
     false
 };
