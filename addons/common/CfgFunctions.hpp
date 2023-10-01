@@ -12,7 +12,6 @@ class CfgFunctions {
             PATHTO_FNC(detectEntityEvents);
 
             PATHTO_FNC(preloadAttributes);
-            PATHTO_FNC(preloadMissionAttributes);
             PATHTO_FNC(checkAttributeDuplicates);
             PATHTO_FNC(checkArgumentMirrors);
         };

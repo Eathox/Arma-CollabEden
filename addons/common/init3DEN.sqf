@@ -10,8 +10,11 @@ _display displayAddEventHandler ["UnLoad", {
 
 _display setVariable [QGVAR(detectEntityEvents_prevEntities), []];
 
-call FUNC(preloadAttributes);
-call FUNC(preloadMissionAttributes);
+private _timeStart = diag_tickTime;
+if (call FUNC(preloadAttributes)) then {
+    private _duration = round ((diag_tickTime - _timeStart) * 1000);
+    INFO_1("Preloaded 3DEN attributes. Time: %1 ms", _duration);
+};
 
 add3DENEventHandler ["OnUndo", FUNC(detectEntityEvents)];
 add3DENEventHandler ["OnRedo", FUNC(detectEntityEvents)];
