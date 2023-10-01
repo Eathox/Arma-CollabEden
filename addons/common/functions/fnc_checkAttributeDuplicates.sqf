@@ -6,16 +6,12 @@ private _formatAttributePath = {
     format ["%1->%2", _parentName, configName _this];
 };
 
-private _getAttributeControlConfig = {
-    private _controlClass = getText (_this >> "Control");
-    configFile >> "Cfg3DEN" >> "Attributes" >> _controlClass;
-};
-
 private _duplicateCheck = {
     params ["_typeName", "_attributes", ["_knownMap", createHashMap]];
 
     {
-        private _controlConfig = _x call _getAttributeControlConfig;
+        private _controlClass = getText (_x >> "Control");
+        private _controlConfig = configFile >> "Cfg3DEN" >> "Attributes" >> _controlClass;
         private _skipCheckDuplicate = getNumber (_controlConfig >> QGVARMAIN(skipDuplicateCheck));
 
         private _name = _x call FUNC(getAttributeName);
