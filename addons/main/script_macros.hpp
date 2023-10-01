@@ -3,15 +3,15 @@
 
 // Disable recompiling for release builds
 #ifdef IS_RELEASE_BUILD
-    #undef DISABLE_COMPILE_CACHE
+#undef DISABLE_COMPILE_CACHE
 #endif
 
 // Using CfgFunctions instead of PREP
 #undef PREP
 
 #ifdef DISABLE_COMPILE_CACHE
-    #undef RECOMPILE
-    #define RECOMPILE recompile = 1
+#undef RECOMPILE
+#define RECOMPILE recompile = 1
 #endif
 
 #undef PATHTO_FNC

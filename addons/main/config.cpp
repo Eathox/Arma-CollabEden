@@ -6,7 +6,7 @@ class CfgPatches {
         VERSION_CONFIG;
         authors[] = {"Eathox"};
         requiredVersion = REQUIRED_VERSION;
-        requiredAddons[] = {"3DEN","cba_main"};
+        requiredAddons[] = {"3DEN", "cba_main"};
 
         units[] = {};
         weapons[] = {};
@@ -14,7 +14,7 @@ class CfgPatches {
     };
 };
 
-// Unsure if even required when using mod.cpp
+// // Unsure if even required when using mod.cpp
 // class CfgMods {
 //     class PREFIX {
 //         name = "Collaborative Eden";

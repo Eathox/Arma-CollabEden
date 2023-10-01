@@ -2,25 +2,25 @@
 class ctrlMenuStrip;
 
 class display3DEN {
-	class Controls {
-		class MenuStrip: ctrlMenuStrip {
-			class Items {
-				class Space {
+    class Controls {
+        class MenuStrip : ctrlMenuStrip {
+            class Items {
+                class Space {
                     enable = 0;
                 };
-				class SpaceMission {
+                class SpaceMission {
                     enable = 0;
                 };
-				class SpaceIntro {
+                class SpaceIntro {
                     enable = 0;
                 };
-				class SpaceOutroWin {
+                class SpaceOutroWin {
                     enable = 0;
                 };
-				class SpaceOutroLose {
+                class SpaceOutroLose {
                     enable = 0;
                 };
-			};
-		};
-	};
+            };
+        };
+    };
 };
