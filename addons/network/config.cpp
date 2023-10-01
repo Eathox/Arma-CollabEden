@@ -18,3 +18,5 @@ class CfgPatches {
 
 #include "CfgFunctions.hpp"
 #include "CfgEventHandlers.hpp"
+
+#include "Display3DEN.hpp"
