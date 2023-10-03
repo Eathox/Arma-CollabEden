@@ -25,7 +25,7 @@ private _duplicateCheck = {
                 _name,
                 _knownConfig call _formatAttributePath,
                 _x call _formatAttributePath
-                );
+            );
         } else {
             _knownMap set [_lowerName, _x];
         };
