@@ -7,10 +7,10 @@ class CfgPatches {
         authors[] = {"Eathox"};
         requiredVersion = REQUIRED_VERSION;
         requiredAddons[] = {"3DEN", "cba_main"};
+        // is3DENmod = 1; // Warns user when loading mission in editor that was saved with addon loaded. (for use with custom attributes, ect.)
 
         units[] = {};
         weapons[] = {};
-        is3DENmod = 1;
     };
 };
 
