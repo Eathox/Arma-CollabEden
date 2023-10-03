@@ -1,46 +1,22 @@
 #include "script_component.hpp"
 
 params [
-    ["_entity", -1, [0, objNull, grpNull, "", []]],
-    ["_categoryFilter", "", ["", []]]
+    ["_entity", -1, [0, objNull, grpNull, "", []]]
 ];
 
 private _cache = uiNamespace getVariable QGVAR(entityAttributes);
 private _entityType = _entity call FUNC(getEntityType);
 
-private _allCategories = _cache get _entityType;
-if (isNil "_allCategories") exitWith {[]};
+private _names = _cache get _entityType;
+if (isNil "_names") exitWith {[]};
 
-if (_categoryFilter isEqualType "") then {
-    _categoryFilter = if (_categoryFilter isEqualTo "") then {
-        keys _allCategories;
-    } else {
-        [_categoryFilter];
-    };
-};
-_categoryFilter = _categoryFilter apply {toLower _x};
-
-private _specificCache = _allCategories get "#specific";
-private _includeSpecific = "#specific" in _categoryFilter;
-if _includeSpecific then {
-    _categoryFilter = _categoryFilter - ["#specific"];
-};
-
-private _names = [];
-{
-    private _category = toLower _x;
-    if (_category in _categoryFilter) then {
-        _names append _y;
-    };
-} foreach _allCategories;
-
-private _hasSpecific = _entityType in ["object", "logic", "trigger", "waypoint", "marker"];
-if (_includeSpecific && _hasSpecific) then {
+if (_entityType in ["object", "logic", "trigger", "waypoint", "marker"]) then {
     (_entity get3DENAttribute "ItemClass") params ["_class"];
 
+    private _specificCache = _cache get _entityType + "#specific";
     private _specificAttributes = _specificCache get _class;
     if !(isNil "_specificAttributes") exitWith {
-        _names append _specificAttributes;
+        _names = _names + _specificAttributes;
     };
 
     private _entityConfig = switch _entityType do {
@@ -73,7 +49,7 @@ if (_includeSpecific && _hasSpecific) then {
     _specificAttributes = _specificAttributes apply {_x call FUNC(getAttributeName)};
 
     _specificCache set [_class, _specificAttributes];
-    _names append _specificAttributes;
+    _names = _names + _specificAttributes;
 };
 
 private _values = _names apply {

@@ -13,21 +13,19 @@ if (isNil "_entityCache") then {
     _entityCache = createHashMap;
 
     {
-        private _typeCache = createHashMap;
         private _categories = configProperties [_x >> "AttributeCategories", "isClass _x"];
-        {
+        private _allNames = flatten (_categories apply {
             private _attributes = configProperties [_x >> "Attributes", "isClass _x"];
-            private _names = _attributes apply {_x call FUNC(getAttributeName)};
-            _typeCache set [toLower (configName _x), _names];
-        } foreach _categories;
+            _attributes apply {_x call FUNC(getAttributeName)};
+        });
 
         private _typeName = toLower (configName _x);
+        _entityCache set [_typeName, _allNames];
 
         // Setup but don't preload specific attributes, these are cached after first use
         if (_typeName in ["object", "logic", "trigger", "waypoint", "marker"]) then {
-            _typeCache set ["#specific", createHashMap];
+            _entityCache set [_typeName+"#specific", createHashMap];
         };
-        _entityCache set [_typeName, _typeCache];
     } foreach [
         _cfg3DEN >> "Object",
         _cfg3DEN >> "Group",
@@ -44,15 +42,14 @@ if (isNil "_missionCache") then {
     _missionCache = createHashMap;
 
     {
-        private _sectionCache = createHashMap;
         private _categories = configProperties [_x >> "AttributeCategories", "isClass _x"];
-        {
+        private _allNames = flatten (_categories apply {
             private _attributes = configProperties [_x >> "Attributes", "isClass _x"];
-            private _names = _attributes apply {_x call FUNC(getAttributeName)};
-            _sectionCache set [toLower (configName _x), _names];
-        } foreach _categories;
+            _attributes apply {_x call FUNC(getAttributeName)};
+        });
 
-        _missionCache set [toLower (configName _x), _sectionCache];
+        private _sectionName = toLower (configName _x);
+        _missionCache set [_sectionName, _allNames];
     } foreach ("true" configClasses (_cfg3DEN >> "Mission"));
 };
 
