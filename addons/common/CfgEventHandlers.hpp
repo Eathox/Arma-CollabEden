@@ -4,6 +4,12 @@ class Extended_PreStart_EventHandlers {
     };
 };
 
+class Extended_PreInit_EventHandlers {
+    class ADDON {
+        Init = QUOTE(call COMPILE_FILE(XEH_preInit));
+    };
+};
+
 class Cfg3DEN {
 	class EventHandlers {
 		class ADDON {
