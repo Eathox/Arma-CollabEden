@@ -1,4 +1,4 @@
-let value = if !HEMTT.is_release() {
+if !HEMTT.is_release() {
     return;
 };
 
