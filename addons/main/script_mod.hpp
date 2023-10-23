@@ -1,6 +1,9 @@
 #define MAINPREFIX z
 #define PREFIX coe
 
+// TODO: add documentation
+// TODO: Look into error handling and logging
+
 // #define IS_RELEASE_BUILD // Only defined in release builds (automatically set by HEMTT)
 #define EXT "collab_eden"
 

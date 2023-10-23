@@ -7,5 +7,5 @@ INFO("Recompiling functions for use in 3DEN.");
     {
         private _name = format [QFUNC(%1), configName _x];
         _name call BIS_fnc_recompile;
-    } foreach configProperties [_x, "isClass _x && (getNumber (_x >> 'recompile') == 1)"];
+    } foreach configProperties [_x, toString {isClass _x && getNumber (_x >> "recompile") == 1}];
 } foreach ("true" configClasses (configFile >> "CfgFunctions" >> QUOTE(PREFIX)));

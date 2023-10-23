@@ -18,14 +18,16 @@ addMissionEventHandler ["ExtensionCallback", {
     params ["_name", "_function", "_data"];
 
     if (toLower _name isNotEqualTo EXT) exitWith {};
-    switch _function do {
-        case "log": {
-            parseSimpleArray _data params ["_target", "_level", "_message"];
-            LOG_SYS(_level,FORMAT_2("<%1> %2",_target,_message));
-        };
-        default {
-            private _eventName = QUOTE(ADDON) + "_" + _function;
-            [_eventName, parseSimpleArray _data] call FUNC(callEventHandler);
-        };
+    if (_function == "log") exitWith {
+        parseSimpleArray _data params ["_target", "_level", "_message"];
+        LOG_SYS(_level,FORMAT_2("<%1> %2",_target,_message));
     };
+
+    if (_function == "receivedEvent") exitWith {
+        parseSimpleArray _data params ["_eventName", "_params"];
+        [_eventName, _params] call FUNC(callReceivedEventHandler);
+    };
+
+    private _eventName = QUOTE(ADDON) + "_" + _function;
+    [_eventName, parseSimpleArray _data] call FUNC(callEventHandler);
 }];

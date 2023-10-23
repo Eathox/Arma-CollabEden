@@ -1,10 +1,10 @@
 #include "script_component.hpp"
 
 {
-    private _arguments = configProperties [_x >> "Arguments", "isClass _x"];
+    private _arguments = configProperties [_x >> "Arguments", toString {isClass _x}];
     if (_arguments isEqualTo []) then {continue};
 
-    private _attributes = configProperties [_x >> "Attributes", "isClass _x"];
+    private _attributes = configProperties [_x >> "Attributes", toString {isClass _x}];
     if (_attributes isEqualTo []) then {continue};
 
     // These modules tend to have controls mixed in with attributes, dunno why
@@ -22,4 +22,4 @@
             WARNING_2("Module %1 uses attributes but is missing mirror for: %2 argument!", _moduleName, _argumentClass);
         };
     } foreach _arguments;
-} foreach ("configName _x isKindOf 'Logic'" configClasses (configFile >> "CfgVehicles"));
+} foreach (toString {configName _x isKindOf "Logic"} configClasses (configFile >> "CfgVehicles"));

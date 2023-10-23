@@ -8,8 +8,9 @@ class CfgFunctions {
 
             PATHTO_FNC(addReceivedEventHandler);
             PATHTO_FNC(addSendEventHandler);
+            PATHTO_FNC(callReceivedEventHandler);
             PATHTO_FNC(callSendEventHandler);
-            PATHTO_FNC(blockSendEventHandler);
+            PATHTO_FNC(initSyncHandlers);
             PATHTO_FNC(sendEvent);
         };
     };

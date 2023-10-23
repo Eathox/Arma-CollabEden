@@ -9,21 +9,21 @@ if (!isNil "_entityCache" && !isNil "_missionCache") exitWith {
 
 private _cfg3DEN = configFile >> "Cfg3DEN";
 private _getAllAttributeNames = {
-    private _categories = configProperties [_this >> "AttributeCategories", "isClass _x"];
+    private _categories = configProperties [_this >> "AttributeCategories", toString {isClass _x}];
     flatten (_categories apply {
-        private _attributes = configProperties [_x >> "Attributes", "isClass _x"];
+        private _attributes = configProperties [_x >> "Attributes", toString {isClass _x}];
         _attributes apply {_x call FUNC(getAttributeName)};
     });
 };
 
 _entityCache = createHashMap;
 {
-    private _typeName = toLower (configName _x);
-    _entityCache set [_typeName, (_x call _getAllAttributeNames)];
+    private _entityType = toLower configName _x;
+    _entityCache set [_entityType, (_x call _getAllAttributeNames)];
 
     // Setup but don't preload specific attributes, these are cached after first use
-    if (_typeName in ["object", "logic", "trigger", "waypoint", "marker"]) then {
-        _entityCache set [_typeName+"#specific", createHashMap];
+    if (_entityType in ["object", "logic", "trigger", "waypoint", "marker"]) then {
+        _entityCache set [_entityType + "#specific", createHashMap];
     };
 } foreach [
     _cfg3DEN >> "Object",
@@ -38,7 +38,7 @@ _entityCache = createHashMap;
 
 _missionCache = createHashMap;
 {
-    private _sectionName = toLower (configName _x);
+    private _sectionName = toLower configName _x;
     _missionCache set [_sectionName, (_x call _getAllAttributeNames)];
 } foreach ("true" configClasses (_cfg3DEN >> "Mission"));
 

@@ -11,7 +11,11 @@ if (isNil "_names") exitWith {[]};
 
 private _values = _names apply {
     (_section get3DENMissionAttribute _x) params ["_value"];
-    if (isNil "_value") then {WARNING_1("Nil attribute: %1.", _x)}; // DEBUG
+    if (isNil "_value") then {
+        // Nil values aren't valid; cant be set or send
+        WARNING_1("Nil attribute: %1, using """" instead.", _x);
+        _value = "";
+    };
     _value
 };
 

@@ -1,4 +1,5 @@
 #include "script_component.hpp"
+#include "\a3\3den\UI\resincl.inc"
 // Note: this file is not called when entering Eden from a mission preview.
 
 params ["_display"];
@@ -19,9 +20,12 @@ if (call FUNC(preloadAttributes)) then {
 add3DENEventHandler ["OnUndo", FUNC(detectEntityEvents)];
 add3DENEventHandler ["OnRedo", FUNC(detectEntityEvents)];
 add3DENEventHandler ["OnHistoryChange", FUNC(detectEntityEvents)];
+
 // Required as these don't trigger OnHistoryChange, tracking issue: https://feedback.bistudio.com/T175680
 add3DENEventHandler ["OnPaste", FUNC(detectEntityEvents)];
 add3DENEventHandler ["OnPasteUnitOrig", FUNC(detectEntityEvents)];
+private _newLayerCtrl = _display displayCtrl IDC_DISPLAY3DEN_EDIT_LAYER;
+_newLayerCtrl ctrlAddEventHandler ["ButtonClick", {FUNC(detectEntityEvents) call CBA_fnc_execNextFrame}];
 
 // -- WIP, might want to move these latter to a interface component or something
 [QEGVAR(network,serverStarted), {

@@ -7,7 +7,7 @@ private _formatAttributePath = {
 };
 
 private _duplicateCheck = {
-    params ["_typeName", "_attributes", ["_knownMap", createHashMap]];
+    params ["_entityType", "_attributes", ["_knownMap", createHashMap]];
 
     {
         private _controlClass = getText (_x >> "Control");
@@ -21,7 +21,7 @@ private _duplicateCheck = {
             private _knownConfig = _knownMap get _lowerName;
             ERROR_4(
                 "Attribute %1-%2 is used by multiple attributes! %3 & %4",
-                _typeName,
+                _entityType,
                 _name,
                 _knownConfig call _formatAttributePath,
                 _x call _formatAttributePath
@@ -38,16 +38,16 @@ private _nonLogicClasses = _cfgVehicleClasses - _logicClasses;
 
 private _waypointClasses = "true" configClasses (configFile >> "CfgWaypoints");
 _waypointClasses = flatten (_waypointClasses apply {
-    configProperties [_x, "isClass _x"];
+    configProperties [_x, toString {isClass _x}];
 });
 
 private _cfg3DEN = configFile >> "Cfg3DEN";
 {
     _x params ["_generalConfig", "_classes"];
 
-    private _categories = configProperties [_generalConfig >> "AttributeCategories", "isClass _x"];
+    private _categories = configProperties [_generalConfig >> "AttributeCategories", toString {isClass _x}];
     private _generalAttributes = flatten (_categories apply {
-        configProperties [_x >> "Attributes", "isClass _x"];
+        configProperties [_x >> "Attributes", toString {isClass _x}];
     });
 
     // General attributes
@@ -62,17 +62,17 @@ private _cfg3DEN = configFile >> "Cfg3DEN";
 
     private _isLogic = (_generalConfig == (_cfg3DEN >> "Logic"));
     {
-        private _specificAttributes = configProperties [_x >> "Attributes", "isClass _x"];
+        private _specificAttributes = configProperties [_x >> "Attributes", toString {isClass _x}];
         private _hasNoAttributes = (_specificAttributes isEqualTo []);
         if (!_isLogic && _hasNoAttributes) then {continue};
 
         if _isLogic then {
-            _specificAttributes = if _hasNoAttributes then {
+            if _hasNoAttributes then {
                 // Some (older) modules have no attributes they use arguments instead
-                configProperties [_x >> "Arguments", "isClass _x"];
+                _specificAttributes = configProperties [_x >> "Arguments", toString {isClass _x}];
             } else {
                 // Modules which have both attributes and arguments tend to have controls mixed in with the attributes
-                _specificAttributes select {isText (_x >> "property") || isText (_x >> "data")};
+                _specificAttributes = _specificAttributes select {isText (_x >> "property") || isText (_x >> "data")};
             };
         };
         [configName _x, _specificAttributes, +_knownMap] call _duplicateCheck;
