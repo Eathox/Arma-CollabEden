@@ -25,11 +25,6 @@ fn init() -> Extension {
         .freeze_state()
         .finish();
     init_logger(ext.context());
-
-    std::thread::spawn(|| loop {
-        debug!("Test");
-        std::thread::sleep(std::time::Duration::from_millis(1000));
-    });
     ext
 }
 
