@@ -1,0 +1,16 @@
+[package]
+name = "collab_eden"
+version = "0.1.0"
+edition = "2021"
+authors = ["Eathox"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+log = { workspace = true, features = ["std"] }
+
+simplelog = "0.12.1"
+arma-rs = { git = "https://github.com/BrettMayson/arma-rs", features = [
+    "serde",
+] }

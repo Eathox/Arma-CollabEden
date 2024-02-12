@@ -1,0 +1,61 @@
+[env]
+EXTENSION_NAME = "collab_eden"
+TARGET_DIRECTORY = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}"
+ROOT_DIRECTORY = "${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}"
+
+[tasks.install_x32]
+command = "rustup"
+args = ["toolchain", "install", "stable-i686-pc-windows-msvc"]
+
+[tasks.build_x64]
+install_crate = false
+command = "cargo"
+args = ["+stable-x86_64-pc-windows-msvc", "build", "${@}"]
+
+[tasks.build_x32]
+install_crate = false
+command = "cargo"
+args = ["+stable-i686-pc-windows-msvc", "build", "--target", "i686-pc-windows-msvc", "${@}"]
+dependencies = ["install_x32"]
+
+[tasks.move_x64]
+run_task = [
+    { name = ["move_x64_release"], condition = { env_contains = { CARGO_MAKE_TASK_ARGS = "--release" }}},
+    { name = ["move_x64_debug"] },
+]
+dependencies = ["build_x64"]
+
+[tasks.move_x64_debug]
+script_runner = "@shell"
+script = '''
+cp ${TARGET_DIRECTORY}/debug/${EXTENSION_NAME}.dll ${ROOT_DIRECTORY}/${EXTENSION_NAME}_x64.dll
+'''
+
+[tasks.move_x64_release]
+script_runner = "@shell"
+script = '''
+cp ${TARGET_DIRECTORY}/release/${EXTENSION_NAME}.dll ${ROOT_DIRECTORY}/${EXTENSION_NAME}_x64.dll
+'''
+
+[tasks.move_x32]
+run_task = [
+    { name = ["move_x32_release"], condition = { env_contains = { CARGO_MAKE_TASK_ARGS = "--release" }}},
+    { name = ["move_x32_debug"] },
+]
+dependencies = ["build_x32"]
+
+[tasks.move_x32_debug]
+script_runner = "@shell"
+script = '''
+cp ${TARGET_DIRECTORY}/i686-pc-windows-msvc/debug/${EXTENSION_NAME}.dll ${ROOT_DIRECTORY}/${EXTENSION_NAME}.dll
+'''
+
+[tasks.move_x32_release]
+script_runner = "@shell"
+script = '''
+cp ${TARGET_DIRECTORY}/i686-pc-windows-msvc/release/${EXTENSION_NAME}.dll ${ROOT_DIRECTORY}/${EXTENSION_NAME}.dll
+'''
+
+[tasks.build]
+dependencies = ["move_x64", "move_x32"]
+

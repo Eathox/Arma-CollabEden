@@ -9,9 +9,7 @@ hemtt.exe
 
 # Extension
 /target
-/Cargo.lock
 /extension/target
-/extension/Cargo.lock
 
 # VSCode
 /.vscode
