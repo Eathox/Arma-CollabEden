@@ -14,7 +14,8 @@ pub enum Error {
     // /// Network IO error.
     // #[error("Network IO Error: {0}")]
     // IO(#[from] std::io::Error),
-    /// Generic catch all error, WIP: only for during early development.
+    /// Generic catch all error.
+    /// WIP: only for during early development.
     #[deprecated(note = "don't use generic errors")]
     #[error("Generic Error: {0}")]
     Generic(String),
