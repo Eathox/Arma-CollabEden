@@ -1,19 +1,20 @@
+//! Errors that can occur using this library.
+
 /// QOL type alias for Result to default to crate [`Error`]
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug, thiserror::Error)]
 /// Errors that can occur using this library.
 pub enum Error {
-    /// Failed to serialize message.
-    #[error("Failed to serialize Message: {0}")]
-    Serialize(#[from] ciborium::ser::Error<std::io::Error>),
-    /// Failed to deserialize message.
-    #[error("Failed to deserialize Message: {0}")]
-    Deserialize(#[from] ciborium::de::Error<std::io::Error>),
-
-    // /// Network IO error.
-    // #[error("Network IO Error: {0}")]
-    // IO(#[from] std::io::Error),
+    // /// Failed to serialize message.
+    // #[error("Failed to serialize Message: {0}")]
+    // Serialize(#[from] ciborium::ser::Error<std::io::Error>),
+    // /// Failed to deserialize message.
+    // #[error("Failed to deserialize Message: {0}")]
+    // Deserialize(#[from] ciborium::de::Error<std::io::Error>),
+    /// Network IO error.
+    #[error("Network IO Error: {0}")]
+    IO(#[from] std::io::Error),
     /// Generic catch all error.
     /// WIP: only for during early development.
     #[deprecated(note = "don't use generic errors")]
