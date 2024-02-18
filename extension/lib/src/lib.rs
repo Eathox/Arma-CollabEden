@@ -1,4 +1,4 @@
-#![deny(clippy::all, clippy::nursery)] // missing_docs,
+#![deny(missing_docs, clippy::all, clippy::nursery)]
 #![warn(clippy::pedantic, clippy::unwrap_used)]
 #![allow(clippy::similar_names, clippy::module_name_repetitions)]
 
@@ -18,7 +18,8 @@ pub use crate::error::{Error, Result};
 use crate::message::{Message, MessageSerde};
 use crate::network::{Endpoint, Event, Handler, NetworkIO};
 
-pub struct NetworkInterface<Command>
+/// Manager responsible for networking. Can be configured to either be either a server, client or both.
+pub struct Manager<Command>
 where
     Command: Send + 'static,
 {
@@ -26,37 +27,47 @@ where
     io: NetworkIO<Command>,
 }
 
-impl NetworkInterface<()> {
+impl Manager<()> {
+    /// Create a new network manager.
+    #[allow(private_interfaces)]
     #[must_use]
-    pub const fn build() -> Builder<NoAddr, NoAddr> {
-        Builder {
+    pub const fn builder() -> ManagerBuilder<NoAddr, NoAddr> {
+        ManagerBuilder {
             host: NoAddr,
             connect: NoAddr,
         }
     }
+
+    /// Address of, for clients the remote address its connected to, and for servers the local address its listening on.
+    #[must_use]
+    pub const fn server_addr(&self) -> SocketAddr {
+        self.addr
+    }
 }
 
-#[derive(Clone)]
 struct Addr(SocketAddr);
 struct NoAddr;
 
-pub struct Builder<HostOn, ConnectTo> {
+/// Builder for [`Manager`].
+pub struct ManagerBuilder<HostOn, ConnectTo> {
     host: HostOn,
     connect: ConnectTo,
 }
 
-impl Builder<NoAddr, NoAddr> {
+impl ManagerBuilder<NoAddr, NoAddr> {
+    /// Configure to be a client connecting to the given address.
     #[must_use]
-    pub const fn connect_to(self, remote: SocketAddr) -> Builder<NoAddr, Addr> {
-        Builder {
+    pub const fn connect_to(self, remote: SocketAddr) -> ManagerBuilder<NoAddr, Addr> {
+        ManagerBuilder {
             host: NoAddr,
             connect: Addr(remote),
         }
     }
 
+    /// Configure to be a server hosting on the given address.
     #[must_use]
-    pub const fn host_on(self, local: SocketAddr) -> Builder<Addr, NoAddr> {
-        Builder {
+    pub const fn host_on(self, local: SocketAddr) -> ManagerBuilder<Addr, NoAddr> {
+        ManagerBuilder {
             host: Addr(local),
             connect: NoAddr,
         }
@@ -64,45 +75,58 @@ impl Builder<NoAddr, NoAddr> {
 }
 
 // Server
-impl Builder<Addr, NoAddr> {
+impl ManagerBuilder<Addr, NoAddr> {
+    /// Convert to a client hosted server.
     #[must_use]
-    pub fn as_client(self) -> Builder<Addr, Addr> {
-        Builder {
-            host: self.host.clone(),
+    pub const fn as_client(self) -> ManagerBuilder<Addr, Addr> {
+        ManagerBuilder {
+            host: Addr(self.host.0),
             connect: Addr(self.host.0),
         }
     }
 
-    pub fn run(self) -> Result<NetworkInterface<()>> {
+    /// Complete the configuration and boot up the server.
+    ///
+    /// # Errors
+    /// Returns an error if the address is unable to be used to listen on.
+    pub fn startup(self) -> Result<Manager<()>> {
         let io = NetworkIO::startup(PlaceHolderHandler(None));
         let addr = io
             .listen(self.host.0)
-            .map_err(|err| Error::ListenOn(self.host.0, err))?;
-        Ok(NetworkInterface { addr, io })
+            .map_err(|err| Error::Listen(self.host.0, err))?;
+        Ok(Manager { addr, io })
     }
 }
 
 // Client
-impl Builder<NoAddr, Addr> {
-    pub fn run(self) -> Result<NetworkInterface<()>> {
+impl ManagerBuilder<NoAddr, Addr> {
+    /// Complete the configuration and boot up the client.
+    ///
+    /// # Errors
+    /// Returns an error if the address is unable to be used to connect to.
+    pub fn startup(self) -> Result<Manager<()>> {
         let io = NetworkIO::startup(PlaceHolderHandler(None));
         let addr = io
             .connect(self.connect.0)
-            .map_err(|err| Error::ConnectTo(self.connect.0, err))?;
-        Ok(NetworkInterface { addr, io })
+            .map_err(|err| Error::ConnectAttempt(self.connect.0, err))?;
+        Ok(Manager { addr, io })
     }
 }
 
 // ClientServer
-impl Builder<Addr, Addr> {
-    pub fn run(self) -> Result<NetworkInterface<()>> {
+impl ManagerBuilder<Addr, Addr> {
+    /// Complete the configuration and boot up the client server.
+    ///
+    /// # Errors
+    /// Returns an error if the address is unable to be used to listen on.
+    pub fn startup(self) -> Result<Manager<()>> {
         let io = NetworkIO::startup(PlaceHolderHandler(None));
         let addr = io
             .listen(self.host.0)
-            .map_err(|err| Error::ListenOn(self.host.0, err))?;
+            .map_err(|err| Error::Listen(self.host.0, err))?;
         io.connect(addr)
-            .map_err(|err| Error::ConnectTo(self.connect.0, err))?;
-        Ok(NetworkInterface { addr, io })
+            .map_err(|err| Error::ConnectAttempt(self.connect.0, err))?; // Should never happen since we just got a valid addr
+        Ok(Manager { addr, io })
     }
 }
 
@@ -111,5 +135,5 @@ struct PlaceHolderHandler(Option<Endpoint>);
 
 impl Handler<()> for PlaceHolderHandler {
     fn handle_net(&mut self, _io: &NetworkIO<()>, _event: Event) {}
-    fn command_handler(&mut self, _io: &NetworkIO<()>, _command: ()) {}
+    fn handle_command(&mut self, _io: &NetworkIO<()>, _command: ()) {}
 }

@@ -5,13 +5,16 @@ use std::net::SocketAddr;
 /// QOL type alias for Result to default to crate [`Error`]
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
-#[derive(Debug, thiserror::Error)]
 /// Errors that can occur using this library.
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
+    /// Failed to start listening on the given address.
     #[error("Failed to start listening on: {0}: {1}")]
-    ListenOn(SocketAddr, std::io::Error),
+    Listen(SocketAddr, std::io::Error),
+
+    /// Failed to send connection attempt, has nothing todo with being able to connect or not.
     #[error("Failed to send connection attempt to: {0}: {1}")]
-    ConnectTo(SocketAddr, std::io::Error),
+    ConnectAttempt(SocketAddr, std::io::Error),
 
     /// Generic catch all error.
     /// WIP: only for during early development.
