@@ -3,11 +3,12 @@ use std::{net::SocketAddr, sync::Arc};
 use message_io::network::{NetEvent, Transport};
 use message_io::node::{self, NodeEvent, NodeHandler, NodeTask};
 
-use crate::{Message, MessageSerde, Result};
+use crate::{Message, MessageSerde};
 
 pub type Endpoint = message_io::network::Endpoint;
 
 /// Events that can occur on the network.
+#[derive(Debug)]
 pub enum Event {
     /// Accepted new connection from endpoint. Only emitted for Servers.
     NewConnection(Endpoint),
@@ -21,24 +22,35 @@ pub enum Event {
 
 pub trait Handler<Command>: Send + 'static
 where
-    Command: Clone + Send + 'static,
+    Command: Send + 'static,
 {
     fn handle_net(&mut self, io: &NetworkIO<Command>, event: Event);
     fn command_handler(&mut self, io: &NetworkIO<Command>, command: Command);
 }
 
-#[derive(Clone)]
 pub struct NetworkIO<Command>
 where
-    Command: Clone + Send + 'static,
+    Command: Send + 'static,
 {
     node: NodeHandler<Command>,
     node_task: Option<Arc<NodeTask>>,
 }
 
+impl<Command> Clone for NetworkIO<Command>
+where
+    Command: Send + 'static,
+{
+    fn clone(&self) -> Self {
+        Self {
+            node: self.node.clone(),
+            node_task: self.node_task.clone(),
+        }
+    }
+}
+
 impl<Command> NetworkIO<Command>
 where
-    Command: Clone + Send + 'static,
+    Command: Send + 'static,
 {
     pub fn startup(mut handler: impl Handler<Command>) -> Self {
         let (node, listener) = node::split::<Command>();
@@ -82,12 +94,12 @@ where
         self.node.stop();
     }
 
-    pub fn listen(&self, addr: SocketAddr) -> Result<SocketAddr> {
+    pub fn listen(&self, addr: SocketAddr) -> std::io::Result<SocketAddr> {
         let (_, addr) = self.node.network().listen(Transport::FramedTcp, addr)?;
         Ok(addr)
     }
 
-    pub fn connect(&self, addr: SocketAddr) -> Result<SocketAddr> {
+    pub fn connect(&self, addr: SocketAddr) -> std::io::Result<SocketAddr> {
         let (_, addr) = self.node.network().connect(Transport::FramedTcp, addr)?;
         Ok(addr)
     }
@@ -105,7 +117,16 @@ where
         }
     }
 
-    pub fn command(&self, command: Command) {
+    pub fn commands(&self, command: Command) {
         self.node.signals().send(command);
+    }
+}
+
+impl<Command> Drop for NetworkIO<Command>
+where
+    Command: Send + 'static,
+{
+    fn drop(&mut self) {
+        self.stop();
     }
 }
