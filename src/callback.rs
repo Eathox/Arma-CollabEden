@@ -5,7 +5,7 @@ use message_io::network::ResourceId;
 
 use crate::CurrentHandler;
 
-pub const CALLBACK_NAME: &str = "collab_eden";
+pub const CALLBACK_NAME: &str = "coden";
 
 #[derive(strum::IntoStaticStr)]
 pub enum Callback {

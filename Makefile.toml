@@ -1,5 +1,5 @@
 [env]
-EXTENSION_NAME = "collab_eden"
+EXTENSION_NAME = "coden"
 
 [tasks.install_x32]
 command = "rustup"
