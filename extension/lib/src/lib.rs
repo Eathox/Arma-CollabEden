@@ -136,5 +136,6 @@ impl EventHandler for PlaceHolderHandler {
     type Command = ();
 
     fn handle_net(&mut self, _io: &NetworkIO<Self>, _event: Event) {}
+    fn handle_message(&mut self, _io: &NetworkIO<Self>, _endpoint: Endpoint, _message: &Message) {}
     fn handle_command(&mut self, _io: &NetworkIO<Self>, _command: ()) {}
 }

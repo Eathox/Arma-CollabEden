@@ -17,24 +17,6 @@ pub enum Event {
     ConnectionAttempt(Endpoint, bool),
     /// Lost connection to endpoint, not emitted on explicit disconnect.
     ConnectionLost(Endpoint),
-    /// Message from endpoint.
-    Message(Endpoint, Message),
-}
-
-impl Event {
-    fn from_net_event(net_event: &NetEvent<'_>) -> Result<Self, String> {
-        match *net_event {
-            NetEvent::Accepted(endpoint, _) => Ok(Self::NewConnection(endpoint)),
-            NetEvent::Connected(endpoint, succeeded) => {
-                Ok(Self::ConnectionAttempt(endpoint, succeeded))
-            }
-            NetEvent::Disconnected(endpoint) => Ok(Self::ConnectionLost(endpoint)),
-            NetEvent::Message(endpoint, bytes) => match Message::from_bytes(bytes) {
-                Ok(message) => Ok(Self::Message(endpoint, message)),
-                Err(err) => Err(format!("received invalid message from({endpoint}): {err}")),
-            },
-        }
-    }
 }
 
 /// Event handler used to implement actual networking logic for client and server.
@@ -44,6 +26,9 @@ pub trait EventHandler: Sized + Send + 'static {
 
     /// Handle network events send from the event loop.
     fn handle_net(&mut self, io: &NetworkIO<Self>, event: Event);
+
+    /// Handle messages received from remote endpoints.
+    fn handle_message(&mut self, io: &NetworkIO<Self>, endpoint: Endpoint, message: &Message);
 
     /// Handle commands sent via [`NetworkIO::command`].
     fn handle_command(&mut self, io: &NetworkIO<Self>, command: Self::Command);
@@ -75,10 +60,23 @@ impl<Handler: EventHandler> NetworkIO<Handler> {
 
         let io = network.clone();
         let task = listener.for_each_async(move |event| match event {
-            NodeEvent::Network(net_event) => match Event::from_net_event(&net_event) {
-                Ok(event) => handler.handle_net(&io, event),
-                Err(err) => error!("{err}"),
-            },
+            NodeEvent::Network(net_event) => {
+                if let NetEvent::Message(endpoint, bytes) = net_event {
+                    match Message::from_bytes(bytes) {
+                        Ok(message) => handler.handle_message(&io, endpoint, &message),
+                        Err(err) => error!("received invalid message from({endpoint}): {err}"),
+                    }
+                    return;
+                }
+
+                let event = match net_event {
+                    NetEvent::Accepted(endpoint, _) => Event::NewConnection(endpoint),
+                    NetEvent::Connected(endpoint, ok) => Event::ConnectionAttempt(endpoint, ok),
+                    NetEvent::Disconnected(endpoint) => Event::ConnectionLost(endpoint),
+                    NetEvent::Message(_, _) => unreachable!("Message should be handled above"),
+                };
+                handler.handle_net(&io, event);
+            }
             NodeEvent::Signal(command) => {
                 handler.handle_command(&io, command);
             }
