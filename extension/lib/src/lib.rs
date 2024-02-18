@@ -16,18 +16,15 @@ mod network;
 
 pub use crate::error::{Error, Result};
 use crate::message::{Message, MessageSerde};
-use crate::network::{Endpoint, Event, Handler, NetworkIO};
+use crate::network::{Endpoint, Event, EventHandler, NetworkIO};
 
 /// Manager responsible for networking. Can be configured to either be either a server, client or both.
-pub struct Manager<Command>
-where
-    Command: Send + 'static,
-{
+pub struct Manager<Handler: EventHandler> {
     addr: SocketAddr,
-    io: NetworkIO<Command>,
+    io: NetworkIO<Handler>,
 }
 
-impl Manager<()> {
+impl<Handler: EventHandler> Manager<Handler> {
     /// Create a new network manager.
     #[allow(private_interfaces)]
     #[must_use]
@@ -89,7 +86,7 @@ impl ManagerBuilder<Addr, NoAddr> {
     ///
     /// # Errors
     /// Returns an error if the address is unable to be used to listen on.
-    pub fn startup(self) -> Result<Manager<()>> {
+    pub fn startup(self) -> Result<Manager<PlaceHolderHandler>> {
         let io = NetworkIO::startup(PlaceHolderHandler(None));
         let addr = io
             .listen(self.host.0)
@@ -104,7 +101,7 @@ impl ManagerBuilder<NoAddr, Addr> {
     ///
     /// # Errors
     /// Returns an error if the address is unable to be used to connect to.
-    pub fn startup(self) -> Result<Manager<()>> {
+    pub fn startup(self) -> Result<Manager<PlaceHolderHandler>> {
         let io = NetworkIO::startup(PlaceHolderHandler(None));
         let addr = io
             .connect(self.connect.0)
@@ -119,7 +116,7 @@ impl ManagerBuilder<Addr, Addr> {
     ///
     /// # Errors
     /// Returns an error if the address is unable to be used to listen on.
-    pub fn startup(self) -> Result<Manager<()>> {
+    pub fn startup(self) -> Result<Manager<PlaceHolderHandler>> {
         let io = NetworkIO::startup(PlaceHolderHandler(None));
         let addr = io
             .listen(self.host.0)
@@ -133,7 +130,9 @@ impl ManagerBuilder<Addr, Addr> {
 // WIP: remove
 struct PlaceHolderHandler(Option<Endpoint>);
 
-impl Handler<()> for PlaceHolderHandler {
-    fn handle_net(&mut self, _io: &NetworkIO<()>, _event: Event) {}
-    fn handle_command(&mut self, _io: &NetworkIO<()>, _command: ()) {}
+impl EventHandler for PlaceHolderHandler {
+    type Command = ();
+
+    fn handle_net(&mut self, _io: &NetworkIO<Self>, _event: Event) {}
+    fn handle_command(&mut self, _io: &NetworkIO<Self>, _command: ()) {}
 }
