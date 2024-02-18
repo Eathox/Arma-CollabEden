@@ -5,7 +5,7 @@
 // TODO: Look into error handling and logging
 
 // #define IS_RELEASE_BUILD // Only defined in release builds (automatically set by HEMTT)
-#define EXT "collab_eden"
+#define EXT "coden"
 
 #include "script_version.hpp"
 
