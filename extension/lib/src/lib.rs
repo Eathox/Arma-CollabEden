@@ -18,7 +18,8 @@ pub use crate::error::{Error, Result};
 use crate::message::{Message, MessageSerde};
 use crate::network::{Endpoint, Event, EventHandler, NetworkIO};
 
-/// Manager responsible for networking. Can be configured to either be either a server, client or both.
+/// Manager responsible for networking.
+/// Can be configured to either be either a server, client or a client hosted server.
 pub struct Manager<Handler: EventHandler> {
     addr: SocketAddr,
     io: NetworkIO<Handler>,
@@ -35,7 +36,7 @@ impl<Handler: EventHandler> Manager<Handler> {
         }
     }
 
-    /// Address of, for clients the remote address its connected to, and for servers the local address its listening on.
+    /// For clients the address its connected to, for servers the address its listening on.
     #[must_use]
     pub const fn server_addr(&self) -> SocketAddr {
         self.addr
@@ -122,7 +123,8 @@ impl ManagerBuilder<Addr, Addr> {
             .listen(self.host.0)
             .map_err(|err| Error::Listen(self.host.0, err))?;
         io.connect(addr)
-            .map_err(|err| Error::ConnectAttempt(self.connect.0, err))?; // Should never happen since we just got a valid addr
+            // Should never happen since we just got a valid addr
+            .map_err(|err| Error::ConnectAttempt(self.connect.0, err))?;
         Ok(Manager { addr, io })
     }
 }

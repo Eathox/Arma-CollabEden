@@ -21,6 +21,22 @@ pub enum Event {
     Message(Endpoint, Message),
 }
 
+impl Event {
+    fn from_net_event(net_event: &NetEvent<'_>) -> Result<Self, String> {
+        match *net_event {
+            NetEvent::Accepted(endpoint, _) => Ok(Self::NewConnection(endpoint)),
+            NetEvent::Connected(endpoint, succeeded) => {
+                Ok(Self::ConnectionAttempt(endpoint, succeeded))
+            }
+            NetEvent::Disconnected(endpoint) => Ok(Self::ConnectionLost(endpoint)),
+            NetEvent::Message(endpoint, bytes) => match Message::from_bytes(bytes) {
+                Ok(message) => Ok(Self::Message(endpoint, message)),
+                Err(err) => Err(format!("received invalid message from({endpoint}): {err}")),
+            },
+        }
+    }
+}
+
 /// Event handler used to implement actual networking logic for client and server.
 pub trait EventHandler: Sized + Send + 'static {
     /// Custom command that can be sent from outside the event loop.
@@ -59,26 +75,10 @@ impl<Handler: EventHandler> NetworkIO<Handler> {
 
         let io = network.clone();
         let task = listener.for_each_async(move |event| match event {
-            NodeEvent::Network(net_event) => {
-                let event = match net_event {
-                    NetEvent::Accepted(endpoint, _) => Ok(Event::NewConnection(endpoint)),
-                    NetEvent::Connected(endpoint, succeeded) => {
-                        Ok(Event::ConnectionAttempt(endpoint, succeeded))
-                    }
-                    NetEvent::Disconnected(endpoint) => Ok(Event::ConnectionLost(endpoint)),
-                    NetEvent::Message(endpoint, bytes) => match Message::from_bytes(bytes) {
-                        Ok(message) => Ok(Event::Message(endpoint, message)),
-                        Err(err) => {
-                            Err(format!("received invalid message from({endpoint}): {err}"))
-                        }
-                    },
-                };
-
-                match event {
-                    Ok(event) => handler.handle_net(&io, event),
-                    Err(err) => error!("{err}"),
-                }
-            }
+            NodeEvent::Network(net_event) => match Event::from_net_event(&net_event) {
+                Ok(event) => handler.handle_net(&io, event),
+                Err(err) => error!("{err}"),
+            },
             NodeEvent::Signal(command) => {
                 handler.handle_command(&io, command);
             }
