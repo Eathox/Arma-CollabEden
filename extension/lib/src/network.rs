@@ -26,10 +26,10 @@ pub trait EventHandler: Sized + Send + 'static {
     /// Custom command that can be sent from outside the event loop.
     type Command: Send + 'static;
 
-    /// Handle an network event from the event loop.
+    /// Handle network events send from the event loop.
     fn handle_net(&mut self, io: &NetworkIO<Self>, event: Event);
 
-    /// Handle an command sent via the [`NetworkIO::command`]
+    /// Handle commands sent via [`NetworkIO::command`].
     fn handle_command(&mut self, io: &NetworkIO<Self>, command: Self::Command);
 }
 
@@ -49,7 +49,7 @@ impl<Handler: EventHandler> Clone for NetworkIO<Handler> {
 }
 
 impl<Handler: EventHandler> NetworkIO<Handler> {
-    /// Create a new network IO, with the given handler. Starts the event loop.
+    /// Create a new network IO, with the given handler, starting the event loop.
     pub fn startup(mut handler: Handler) -> Self {
         let (node, listener) = node::split::<Handler::Command>();
         let mut network = Self {
@@ -88,8 +88,8 @@ impl<Handler: EventHandler> NetworkIO<Handler> {
         network
     }
 
-    /// Stop the event loop.
-    pub fn stop(&self) {
+    /// Shut down the event loop.
+    pub fn shutdown(&self) {
         self.node.stop();
     }
 
@@ -122,7 +122,7 @@ impl<Handler: EventHandler> NetworkIO<Handler> {
         }
     }
 
-    /// Send a [`EventHandler::Command`] to the [`EventHandler`].
+    /// Send a command to the [`EventHandler`].
     pub fn command(&self, command: Handler::Command) {
         self.node.signals().send(command);
     }
@@ -130,6 +130,6 @@ impl<Handler: EventHandler> NetworkIO<Handler> {
 
 impl<Handler: EventHandler> Drop for NetworkIO<Handler> {
     fn drop(&mut self) {
-        self.stop();
+        self.shutdown();
     }
 }
