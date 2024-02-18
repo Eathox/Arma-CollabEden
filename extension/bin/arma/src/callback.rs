@@ -1,1 +1,1 @@
-pub const CALLBACK_NAME: &str = "collab_eden";
+pub const CALLBACK_NAME: &str = "coden";

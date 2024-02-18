@@ -120,16 +120,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "collab_eden"
-version = "0.1.0"
-dependencies = [
- "arma-rs 1.10.5 (git+https://github.com/BrettMayson/arma-rs)",
- "log",
- "simplelog",
-]
-
-[[package]]
-name = "collab_eden_lib"
+name = "coden"
 version = "0.1.0"
 dependencies = [
  "arma-rs 1.10.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -138,6 +129,15 @@ dependencies = [
  "message-io",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "coden-extension"
+version = "0.1.0"
+dependencies = [
+ "arma-rs 1.10.5 (git+https://github.com/BrettMayson/arma-rs)",
+ "log",
+ "simplelog",
 ]
 
 [[package]]

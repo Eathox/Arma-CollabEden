@@ -1,7 +1,7 @@
-[tasks.build_ext]
-env = { "CARGO_MAKE_WORKSPACE_INCLUDE_MEMBERS" = ["collab_eden"] }
+[tasks.build-ext]
+env = { "CARGO_MAKE_WORKSPACE_INCLUDE_MEMBERS" = ["extension/bin/arma"] }
 run_task = { name = "build", fork = true }
 workspace = false
 
 [tasks.build]
-dependencies = ["build_ext"]
+dependencies = ["build-ext"]

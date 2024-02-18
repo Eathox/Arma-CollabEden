@@ -1,5 +1,6 @@
 [env]
-EXTENSION_NAME = "collab_eden"
+EXTENSION_NAME = "coden"
+CRATE_FS_NAME = "${CARGO_MAKE_CRATE_FS_NAME}"
 TARGET_DIRECTORY = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}"
 ROOT_DIRECTORY = "${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}"
 
@@ -28,13 +29,13 @@ dependencies = ["build_x64"]
 [tasks.move_x64_debug]
 script_runner = "@shell"
 script = '''
-cp ${TARGET_DIRECTORY}/debug/${EXTENSION_NAME}.dll ${ROOT_DIRECTORY}/${EXTENSION_NAME}_x64.dll
+cp ${TARGET_DIRECTORY}/debug/${CRATE_FS_NAME}.dll ${ROOT_DIRECTORY}/${EXTENSION_NAME}_x64.dll
 '''
 
 [tasks.move_x64_release]
 script_runner = "@shell"
 script = '''
-cp ${TARGET_DIRECTORY}/release/${EXTENSION_NAME}.dll ${ROOT_DIRECTORY}/${EXTENSION_NAME}_x64.dll
+cp ${TARGET_DIRECTORY}/release/${CRATE_FS_NAME}.dll ${ROOT_DIRECTORY}/${EXTENSION_NAME}_x64.dll
 '''
 
 [tasks.move_x32]
@@ -47,13 +48,13 @@ dependencies = ["build_x32"]
 [tasks.move_x32_debug]
 script_runner = "@shell"
 script = '''
-cp ${TARGET_DIRECTORY}/i686-pc-windows-msvc/debug/${EXTENSION_NAME}.dll ${ROOT_DIRECTORY}/${EXTENSION_NAME}.dll
+cp ${TARGET_DIRECTORY}/i686-pc-windows-msvc/debug/${CRATE_FS_NAME}.dll ${ROOT_DIRECTORY}/${EXTENSION_NAME}.dll
 '''
 
 [tasks.move_x32_release]
 script_runner = "@shell"
 script = '''
-cp ${TARGET_DIRECTORY}/i686-pc-windows-msvc/release/${EXTENSION_NAME}.dll ${ROOT_DIRECTORY}/${EXTENSION_NAME}.dll
+cp ${TARGET_DIRECTORY}/i686-pc-windows-msvc/release/${CRATE_FS_NAME}.dll ${ROOT_DIRECTORY}/${EXTENSION_NAME}.dll
 '''
 
 [tasks.build]
