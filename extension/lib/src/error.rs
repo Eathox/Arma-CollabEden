@@ -26,7 +26,6 @@ pub enum Error {
 impl Error {
     /// Helper function to an create generic error.
     #[deprecated(note = "don't use generic errors")]
-    #[inline]
     pub fn generic<T: std::fmt::Display>(e: T) -> Self {
         Self::Generic(e.to_string())
     }

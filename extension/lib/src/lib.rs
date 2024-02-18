@@ -10,22 +10,22 @@ extern crate log;
 
 use std::net::SocketAddr;
 
-pub mod error;
+mod error;
 mod message;
 mod network;
 
-pub use crate::error::{Error, Result};
-use crate::message::{Message, MessageSerde};
-use crate::network::{Endpoint, Event, EventHandler, NetworkIO};
+pub use error::{Error, Result};
+use message::{Message, MessageSerde};
+use network::{Endpoint, Event, Handler, NetworkIO};
 
 /// Manager responsible for networking.
 /// Can be configured to either be either a server, client or a client hosted server.
-pub struct Manager<Handler: EventHandler> {
+pub struct Manager<H: Handler> {
     addr: SocketAddr,
-    io: NetworkIO<Handler>,
+    io: NetworkIO<H>,
 }
 
-impl<Handler: EventHandler> Manager<Handler> {
+impl<H: Handler> Manager<H> {
     /// Create a new network manager.
     #[allow(private_interfaces)]
     #[must_use]
@@ -54,6 +54,7 @@ pub struct ManagerBuilder<HostOn, ConnectTo> {
 
 impl ManagerBuilder<NoAddr, NoAddr> {
     /// Configure to be a client connecting to the given address.
+    #[inline]
     #[must_use]
     pub const fn connect_to(self, remote: SocketAddr) -> ManagerBuilder<NoAddr, Addr> {
         ManagerBuilder {
@@ -63,6 +64,7 @@ impl ManagerBuilder<NoAddr, NoAddr> {
     }
 
     /// Configure to be a server hosting on the given address.
+    #[inline]
     #[must_use]
     pub const fn host_on(self, local: SocketAddr) -> ManagerBuilder<Addr, NoAddr> {
         ManagerBuilder {
@@ -75,6 +77,7 @@ impl ManagerBuilder<NoAddr, NoAddr> {
 // Server
 impl ManagerBuilder<Addr, NoAddr> {
     /// Convert to a client hosted server.
+    #[inline]
     #[must_use]
     pub const fn as_client(self) -> ManagerBuilder<Addr, Addr> {
         ManagerBuilder {
@@ -87,6 +90,7 @@ impl ManagerBuilder<Addr, NoAddr> {
     ///
     /// # Errors
     /// Returns an error if the address is unable to be used to listen on.
+    #[inline]
     pub fn startup(self) -> Result<Manager<PlaceHolderHandler>> {
         let io = NetworkIO::startup(PlaceHolderHandler(None));
         let addr = io
@@ -102,6 +106,7 @@ impl ManagerBuilder<NoAddr, Addr> {
     ///
     /// # Errors
     /// Returns an error if the address is unable to be used to connect to.
+    #[inline]
     pub fn startup(self) -> Result<Manager<PlaceHolderHandler>> {
         let io = NetworkIO::startup(PlaceHolderHandler(None));
         let addr = io
@@ -117,6 +122,7 @@ impl ManagerBuilder<Addr, Addr> {
     ///
     /// # Errors
     /// Returns an error if the address is unable to be used to listen on.
+    #[inline]
     pub fn startup(self) -> Result<Manager<PlaceHolderHandler>> {
         let io = NetworkIO::startup(PlaceHolderHandler(None));
         let addr = io
@@ -132,7 +138,7 @@ impl ManagerBuilder<Addr, Addr> {
 // WIP: remove
 struct PlaceHolderHandler(Option<Endpoint>);
 
-impl EventHandler for PlaceHolderHandler {
+impl Handler for PlaceHolderHandler {
     type Command = ();
 
     fn handle_net(&mut self, _io: &NetworkIO<Self>, _event: Event) {}

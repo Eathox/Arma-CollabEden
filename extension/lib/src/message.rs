@@ -17,7 +17,6 @@ pub trait MessageSerde: Serialize + DeserializeOwned {
     ///
     /// # Errors
     /// An error is returned if the message cannot be serialized.
-    #[inline]
     fn to_bytes(&self) -> Result<Vec<u8>, ciborium::ser::Error<std::io::Error>> {
         let mut buffer = Vec::new();
         ciborium::into_writer(self, &mut buffer)?;
@@ -28,7 +27,6 @@ pub trait MessageSerde: Serialize + DeserializeOwned {
     ///
     /// # Errors
     /// An error is returned if the message cannot be deserialized.
-    #[inline]
     fn from_bytes<T: MessageSerde>(bytes: &[u8]) -> Result<T, ciborium::de::Error<std::io::Error>> {
         ciborium::from_reader(bytes)
     }

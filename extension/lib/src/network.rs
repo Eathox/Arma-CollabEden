@@ -20,7 +20,7 @@ pub enum Event {
 }
 
 /// Event handler used to implement actual networking logic for client and server.
-pub trait EventHandler: Sized + Send + 'static {
+pub trait Handler: Sized + Send + 'static {
     /// Custom command that can be sent from outside the event loop.
     type Command: Send + 'static;
 
@@ -35,12 +35,12 @@ pub trait EventHandler: Sized + Send + 'static {
 }
 
 /// Core of the networking IO, handles event loop and sending and receiving messages.
-pub struct NetworkIO<Handler: EventHandler> {
-    node: NodeHandler<Handler::Command>,
+pub struct NetworkIO<H: Handler> {
+    node: NodeHandler<H::Command>,
     node_task: Option<Arc<NodeTask>>,
 }
 
-impl<Handler: EventHandler> Clone for NetworkIO<Handler> {
+impl<H: Handler> Clone for NetworkIO<H> {
     fn clone(&self) -> Self {
         Self {
             node: self.node.clone(),
@@ -49,10 +49,10 @@ impl<Handler: EventHandler> Clone for NetworkIO<Handler> {
     }
 }
 
-impl<Handler: EventHandler> NetworkIO<Handler> {
+impl<H: Handler> NetworkIO<H> {
     /// Create a new network IO, with the given handler, starting the event loop.
-    pub fn startup(mut handler: Handler) -> Self {
-        let (node, listener) = node::split::<Handler::Command>();
+    pub fn startup(mut handler: H) -> Self {
+        let (node, listener) = node::split::<H::Command>();
         let mut network = Self {
             node,
             node_task: None,
@@ -120,13 +120,13 @@ impl<Handler: EventHandler> NetworkIO<Handler> {
         }
     }
 
-    /// Send a command to the [`EventHandler`].
-    pub fn command(&self, command: Handler::Command) {
+    /// Send a command to the [`Handler`].
+    pub fn command(&self, command: H::Command) {
         self.node.signals().send(command);
     }
 }
 
-impl<Handler: EventHandler> Drop for NetworkIO<Handler> {
+impl<H: Handler> Drop for NetworkIO<H> {
     fn drop(&mut self) {
         self.shutdown();
     }
