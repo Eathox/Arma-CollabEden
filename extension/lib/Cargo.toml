@@ -8,9 +8,9 @@ authors = ["Eathox"]
 log = { workspace = true }
 arma-rs = { workspace = true, features = ["serde"] }
 
-ciborium = "0.2.1"
-thiserror = "1.0.48"
-serde = { version = "1.0.188", features = ["derive"] }
-message-io = { version = "0.18.0", default-features = false, features = [
+ciborium = "0.2.2"
+thiserror = "1.0.57"
+serde = { version = "1.0.197", features = ["derive"] }
+message-io = { version = "0.18.1", default-features = false, features = [
     "tcp",
 ] }

@@ -11,35 +11,33 @@ extern crate log;
 use std::net::SocketAddr;
 
 mod error;
-mod message;
+mod handlers;
 mod network;
 
 pub use error::{Error, Result};
-use message::{Message, MessageSerde};
-use network::{Endpoint, Event, Handler, NetworkIO};
+use handlers::{ClientHandler, ClientServerHandler, ServerHandler};
+use network::{new_network_interface, ListenerLifetime, NetworkController, NetworkHandler};
 
-/// Manager responsible for networking.
-/// Can be configured to either be either a server, client or a client hosted server.
-pub struct Manager<H: Handler> {
+/// Manager responsible for networking, constructed with [`ManagerBuilder`].
+/// Can be configured to be either a server, client or a client hosted server.
+pub struct Manager<H: NetworkHandler> {
     addr: SocketAddr,
-    io: NetworkIO<H>,
+    controller: NetworkController<H>,
+    _lifetime: ListenerLifetime,
 }
 
-impl<H: Handler> Manager<H> {
-    /// Create a new network manager.
-    #[allow(private_interfaces)]
-    #[must_use]
-    pub const fn builder() -> ManagerBuilder<NoAddr, NoAddr> {
-        ManagerBuilder {
-            host: NoAddr,
-            connect: NoAddr,
-        }
-    }
-
+impl<H: NetworkHandler> Manager<H> {
     /// For clients the address its connected to, for servers the address its listening on.
+    #[inline]
     #[must_use]
     pub const fn server_addr(&self) -> SocketAddr {
         self.addr
+    }
+}
+
+impl<H: NetworkHandler> Drop for Manager<H> {
+    fn drop(&mut self) {
+        self.controller.stop();
     }
 }
 
@@ -53,6 +51,17 @@ pub struct ManagerBuilder<HostOn, ConnectTo> {
 }
 
 impl ManagerBuilder<NoAddr, NoAddr> {
+    /// Start building a new network manager.
+    #[allow(private_interfaces)]
+    #[inline]
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            host: NoAddr,
+            connect: NoAddr,
+        }
+    }
+
     /// Configure to be a client connecting to the given address.
     #[inline]
     #[must_use]
@@ -91,12 +100,17 @@ impl ManagerBuilder<Addr, NoAddr> {
     /// # Errors
     /// Returns an error if the address is unable to be used to listen on.
     #[inline]
-    pub fn startup(self) -> Result<Manager<PlaceHolderHandler>> {
-        let io = NetworkIO::startup(PlaceHolderHandler(None));
-        let addr = io
-            .listen(self.host.0)
-            .map_err(|err| Error::Listen(self.host.0, err))?;
-        Ok(Manager { addr, io })
+    pub fn startup(self) -> Result<Manager<ServerHandler>> {
+        let (controller, listener) = new_network_interface();
+        let addr = controller.listen(self.host.0)?;
+
+        let handler = ServerHandler::new(controller.clone());
+        let lifetime = listener.start(handler);
+        Ok(Manager {
+            addr,
+            controller,
+            _lifetime: lifetime,
+        })
     }
 }
 
@@ -107,12 +121,17 @@ impl ManagerBuilder<NoAddr, Addr> {
     /// # Errors
     /// Returns an error if the address is unable to be used to connect to.
     #[inline]
-    pub fn startup(self) -> Result<Manager<PlaceHolderHandler>> {
-        let io = NetworkIO::startup(PlaceHolderHandler(None));
-        let addr = io
-            .connect(self.connect.0)
-            .map_err(|err| Error::ConnectAttempt(self.connect.0, err))?;
-        Ok(Manager { addr, io })
+    pub fn startup(self) -> Result<Manager<ClientHandler>> {
+        let (controller, listener) = new_network_interface();
+        let conn = controller.connect(self.connect.0)?;
+
+        let handler = ClientHandler::new(controller.clone(), conn);
+        let lifetime = listener.start(handler);
+        Ok(Manager {
+            addr: conn.addr(),
+            controller,
+            _lifetime: lifetime,
+        })
     }
 }
 
@@ -123,25 +142,17 @@ impl ManagerBuilder<Addr, Addr> {
     /// # Errors
     /// Returns an error if the address is unable to be used to listen on.
     #[inline]
-    pub fn startup(self) -> Result<Manager<PlaceHolderHandler>> {
-        let io = NetworkIO::startup(PlaceHolderHandler(None));
-        let addr = io
-            .listen(self.host.0)
-            .map_err(|err| Error::Listen(self.host.0, err))?;
-        io.connect(addr)
-            // Should never happen since we just got a valid addr
-            .map_err(|err| Error::ConnectAttempt(self.connect.0, err))?;
-        Ok(Manager { addr, io })
+    pub fn startup(self) -> Result<Manager<ClientServerHandler>> {
+        let (controller, listener) = new_network_interface();
+        let addr = controller.listen(self.host.0)?;
+        let conn = controller.connect(addr)?;
+
+        let handler = ClientServerHandler::new(controller.clone(), conn);
+        let lifetime = listener.start(handler);
+        Ok(Manager {
+            addr,
+            controller,
+            _lifetime: lifetime,
+        })
     }
-}
-
-// WIP: remove
-struct PlaceHolderHandler(Option<Endpoint>);
-
-impl Handler for PlaceHolderHandler {
-    type Command = ();
-
-    fn handle_net(&mut self, _io: &NetworkIO<Self>, _event: Event) {}
-    fn handle_message(&mut self, _io: &NetworkIO<Self>, _endpoint: Endpoint, _message: &Message) {}
-    fn handle_command(&mut self, _io: &NetworkIO<Self>, _command: ()) {}
 }
