@@ -3,13 +3,13 @@ use std::time::Instant;
 use crossbeam_channel::{unbounded, Receiver, Sender};
 
 pub mod client;
-pub mod client_server;
+pub mod client_host;
 pub mod server;
 
 use crate::network::NetworkSerde;
 
 pub use client::{ClientCommand, ClientHandler, ClientOutput};
-pub use client_server::{ClientServerHandler, ClientServerOutput};
+pub use client_host::{ClientHostHandler, ClientHostOutput};
 pub use server::{ServerCommand, ServerHandler, ServerOutput};
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

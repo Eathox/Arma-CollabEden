@@ -16,11 +16,11 @@ mod error;
 mod handlers;
 mod network;
 
-use handlers::{ClientHandler, ClientServerHandler, OutputReceiver, ServerHandler};
+use handlers::{ClientHandler, ClientHostHandler, OutputReceiver, ServerHandler};
 use network::{new_network_interface, ListenerLifetime, NetworkController, NetworkHandler};
 
 pub use error::{Error, Result};
-pub use handlers::{ClientOutput, ClientServerOutput, ServerOutput};
+pub use handlers::{ClientHostOutput, ClientOutput, ServerOutput};
 
 /// Manager responsible for networking, constructed with [`ManagerBuilder`].
 /// Can be configured to be either a server, client or a client hosted server.
@@ -165,20 +165,20 @@ impl ManagerBuilder<NoAddr, Addr> {
     }
 }
 
-// ClientServer
+// Client hosted server
 impl ManagerBuilder<Addr, Addr> {
     /// Complete the configuration and boot up the client server.
     ///
     /// # Errors
     /// Returns an error if the address is unable to be used to listen on.
     #[inline]
-    pub fn startup(self) -> Result<Manager<ClientServerHandler>> {
+    pub fn startup(self) -> Result<Manager<ClientHostHandler>> {
         let (controller, listener) = new_network_interface();
         let addr = controller.listen(self.host.0)?;
         let conn = controller.connect(addr)?;
 
         let (handler, output) =
-            ClientServerHandler::new(controller.clone(), conn, self.enable_output);
+            ClientHostHandler::new(controller.clone(), conn, self.enable_output);
         let lifetime = listener.start(handler);
         Ok(Manager {
             addr,
