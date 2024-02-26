@@ -18,6 +18,15 @@ pub use error::{Error, Result};
 use handlers::{ClientHandler, ClientServerHandler, ServerHandler};
 use network::{new_network_interface, ListenerLifetime, NetworkController, NetworkHandler};
 
+/// Dedicated server
+pub type ServerManager = Manager<ServerHandler>;
+
+/// Client [`Manager`].
+pub type ClientManager = Manager<ClientHandler>;
+
+/// Client hosted server [`Manager`].
+pub type ClientServerManager = Manager<ClientServerHandler>;
+
 /// Manager responsible for networking, constructed with [`ManagerBuilder`].
 /// Can be configured to be either a server, client or a client hosted server.
 pub struct Manager<H: NetworkHandler> {
@@ -100,7 +109,7 @@ impl ManagerBuilder<Addr, NoAddr> {
     /// # Errors
     /// Returns an error if the address is unable to be used to listen on.
     #[inline]
-    pub fn startup(self) -> Result<Manager<ServerHandler>> {
+    pub fn startup(self) -> Result<ServerManager> {
         let (controller, listener) = new_network_interface();
         let addr = controller.listen(self.host.0)?;
 
@@ -121,7 +130,7 @@ impl ManagerBuilder<NoAddr, Addr> {
     /// # Errors
     /// Returns an error if the address is unable to be used to connect to.
     #[inline]
-    pub fn startup(self) -> Result<Manager<ClientHandler>> {
+    pub fn startup(self) -> Result<ClientManager> {
         let (controller, listener) = new_network_interface();
         let conn = controller.connect(self.connect.0)?;
 
@@ -142,7 +151,7 @@ impl ManagerBuilder<Addr, Addr> {
     /// # Errors
     /// Returns an error if the address is unable to be used to listen on.
     #[inline]
-    pub fn startup(self) -> Result<Manager<ClientServerHandler>> {
+    pub fn startup(self) -> Result<ClientServerManager> {
         let (controller, listener) = new_network_interface();
         let addr = controller.listen(self.host.0)?;
         let conn = controller.connect(addr)?;
