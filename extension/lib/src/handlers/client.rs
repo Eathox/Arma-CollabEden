@@ -1,31 +1,62 @@
 use std::time::Instant;
 
-use super::Message;
+use super::{Message, OutputReceiver, OutputSender};
 use crate::network::{Endpoint, NetworkController, NetworkEvent, NetworkHandler};
 
 #[derive(Debug)]
 pub enum ClientCommand {
+    Disconnect,
     Ping,
 }
 
+/// Client output event, received through [`Manager::output`].
+///
+/// [`Manager::output`]: crate::Manager::output
+#[derive(Debug)]
+pub enum ClientOutput {}
+
 pub struct ClientHandler {
     network: NetworkController<Self>,
+    output: OutputSender<ClientOutput>,
     server: Endpoint,
 }
 
 impl ClientHandler {
-    pub const fn new(network: NetworkController<Self>, server: Endpoint) -> Self {
-        Self { network, server }
+    pub fn new(
+        network: NetworkController<Self>,
+        server: Endpoint,
+        enable_output: bool,
+    ) -> (Self, OutputReceiver<ClientOutput>) {
+        let (mut sender, receiver) = OutputSender::new();
+        if !enable_output {
+            sender.disable();
+        }
+
+        (
+            Self {
+                network,
+                output: sender,
+                server,
+            },
+            receiver,
+        )
     }
 
-    pub const fn server(&self) -> &Endpoint {
-        &self.server
+    fn disconnect(&self) {
+        self.network.remove(self.server);
+        self.network.stop();
+    }
+
+    fn ping(&self) {
+        self.network
+            .send(self.server, Message::Ping(Instant::now()));
     }
 }
 
 impl NetworkHandler for ClientHandler {
     type Message = Message;
     type Command = ClientCommand;
+    type Output = ClientOutput;
 
     fn handle_event(&mut self, event: NetworkEvent) {
         match event {
@@ -61,10 +92,8 @@ impl NetworkHandler for ClientHandler {
 
     fn handle_command(&mut self, command: &Self::Command) {
         match command {
-            ClientCommand::Ping => {
-                self.network
-                    .send(self.server, Message::Ping(Instant::now()));
-            }
+            ClientCommand::Disconnect => self.disconnect(),
+            ClientCommand::Ping => self.ping(),
         }
     }
 }

@@ -1,23 +1,56 @@
 use std::time::Instant;
 
-use super::Message;
+use super::{Message, OutputReceiver, OutputSender};
 use crate::network::{Endpoint, NetworkController, NetworkEvent, NetworkHandler};
 
 #[derive(Debug)]
 pub enum ServerCommand {
+    Disconnect,
     Ping,
 }
 
+/// Server output event, received through [`Manager::output`].
+///
+/// [`Manager::output`]: crate::Manager::output
+#[derive(Debug)]
+pub enum ServerOutput {}
+
 pub struct ServerHandler {
     network: NetworkController<Self>,
+    output: OutputSender<ServerOutput>,
     clients: Vec<Endpoint>,
 }
 
 impl ServerHandler {
-    pub const fn new(network: NetworkController<Self>) -> Self {
-        Self {
-            network,
-            clients: vec![],
+    pub fn new(
+        network: NetworkController<Self>,
+        enable_output: bool,
+    ) -> (Self, OutputReceiver<ServerOutput>) {
+        let (mut sender, receiver) = OutputSender::new();
+        if !enable_output {
+            sender.disable();
+        }
+
+        (
+            Self {
+                network,
+                output: sender,
+                clients: vec![],
+            },
+            receiver,
+        )
+    }
+
+    fn disconnect(&self) {
+        for client in &self.clients {
+            self.network.remove(*client);
+        }
+        self.network.stop();
+    }
+
+    fn ping(&self) {
+        for client in &self.clients {
+            self.network.send(*client, Message::Ping(Instant::now()));
         }
     }
 }
@@ -25,6 +58,7 @@ impl ServerHandler {
 impl NetworkHandler for ServerHandler {
     type Message = Message;
     type Command = ServerCommand;
+    type Output = ServerOutput;
 
     fn handle_event(&mut self, event: NetworkEvent) {
         match event {
@@ -60,11 +94,8 @@ impl NetworkHandler for ServerHandler {
 
     fn handle_command(&mut self, command: &Self::Command) {
         match command {
-            ServerCommand::Ping => {
-                for client in &self.clients {
-                    self.network.send(*client, Message::Ping(Instant::now()));
-                }
-            }
+            ServerCommand::Disconnect => self.disconnect(),
+            ServerCommand::Ping => self.ping(),
         }
     }
 }

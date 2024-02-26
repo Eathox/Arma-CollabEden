@@ -1,6 +1,5 @@
 use std::{collections::HashSet, net::SocketAddr};
 
-pub use message_io::network::Endpoint;
 use message_io::{
     network::{NetEvent, Transport},
     node::{self, NodeEvent, NodeHandler, NodeListener},
@@ -9,8 +8,10 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{Error, Result};
 
+pub use message_io::network::Endpoint;
+
 /// Event that can occur on the network interface.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum NetworkEvent {
     /// Accepted new connection. Only emitted for Servers.
     NewConnection(Endpoint),
@@ -25,8 +26,11 @@ pub trait NetworkHandler: Sized + Send + 'static {
     /// Message send and received by this handler.
     type Message: NetworkSerde + Send + 'static;
 
-    /// Command thats send from outside the listener loop using [`NetworkController::command`].
+    /// Command thats send to the handler from outside the listener loop using [`NetworkController::command`].
     type Command: Send + 'static;
+
+    /// Handler output for the end user of this library.
+    type Output;
 
     /// Handle a network event.
     fn handle_event(&mut self, event: NetworkEvent);

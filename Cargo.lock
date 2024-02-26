@@ -125,6 +125,7 @@ version = "0.1.0"
 dependencies = [
  "arma-rs 1.10.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "ciborium",
+ "crossbeam-channel",
  "log",
  "message-io",
  "serde",

@@ -7,6 +7,7 @@ authors = ["Eathox"]
 [dependencies]
 log = { workspace = true }
 arma-rs = { workspace = true, features = ["serde"] }
+crossbeam-channel = { workspace = true }
 
 ciborium = "0.2.2"
 thiserror = "1.0.57"

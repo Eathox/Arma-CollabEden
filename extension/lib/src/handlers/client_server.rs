@@ -1,12 +1,19 @@
 #![allow(dead_code, unused)] // WIP
 
-use super::{ClientCommand, Message, ServerCommand};
+use super::{ClientCommand, Message, OutputReceiver, OutputSender, ServerCommand};
 use crate::network::{Endpoint, NetworkController, NetworkEvent, NetworkHandler};
 
+#[derive(Debug)]
 pub enum ClientServerCommand {
     Client(ClientCommand),
     Server(ServerCommand),
 }
+
+/// Client hosted server output event, received through [`Manager::output`].
+///
+/// [`Manager::output`]: crate::Manager::output
+#[derive(Debug)]
+pub enum ClientServerOutput {}
 
 impl From<ClientCommand> for ClientServerCommand {
     fn from(command: ClientCommand) -> Self {
@@ -22,12 +29,29 @@ impl From<ServerCommand> for ClientServerCommand {
 
 pub struct ClientServerHandler {
     network: NetworkController<Self>,
+    output: OutputSender<ClientServerOutput>,
     server: Endpoint,
 }
 
 impl ClientServerHandler {
-    pub const fn new(network: NetworkController<Self>, server: Endpoint) -> Self {
-        Self { network, server }
+    pub fn new(
+        network: NetworkController<Self>,
+        server: Endpoint,
+        enable_output: bool,
+    ) -> (Self, OutputReceiver<ClientServerOutput>) {
+        let (mut sender, receiver) = OutputSender::new();
+        if !enable_output {
+            sender.disable();
+        }
+
+        (
+            Self {
+                network,
+                server,
+                output: sender,
+            },
+            receiver,
+        )
     }
 
     pub fn conn_is_server(&self, conn: &Endpoint) -> bool {
@@ -38,6 +62,7 @@ impl ClientServerHandler {
 impl NetworkHandler for ClientServerHandler {
     type Message = Message;
     type Command = ClientServerCommand;
+    type Output = ClientServerOutput;
 
     fn handle_event(&mut self, event: NetworkEvent) {
         todo!()

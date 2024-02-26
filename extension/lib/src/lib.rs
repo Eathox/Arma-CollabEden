@@ -1,5 +1,5 @@
-#![deny(missing_docs, clippy::all, clippy::nursery)]
-#![warn(clippy::pedantic, clippy::unwrap_used)]
+#![deny(clippy::all, clippy::nursery)]
+#![warn(missing_docs, clippy::pedantic, clippy::unwrap_used)]
 #![allow(clippy::similar_names, clippy::module_name_repetitions)]
 
 //! Networking library to add multiplayer capabilities to Arma 3s Eden Editor.
@@ -10,28 +10,24 @@ extern crate log;
 
 use std::net::SocketAddr;
 
+use crossbeam_channel::Receiver;
+
 mod error;
 mod handlers;
 mod network;
 
-pub use error::{Error, Result};
-use handlers::{ClientHandler, ClientServerHandler, ServerHandler};
+use handlers::{ClientHandler, ClientServerHandler, OutputReceiver, ServerHandler};
 use network::{new_network_interface, ListenerLifetime, NetworkController, NetworkHandler};
 
-/// Dedicated server
-pub type ServerManager = Manager<ServerHandler>;
-
-/// Client [`Manager`].
-pub type ClientManager = Manager<ClientHandler>;
-
-/// Client hosted server [`Manager`].
-pub type ClientServerManager = Manager<ClientServerHandler>;
+pub use error::{Error, Result};
+pub use handlers::{ClientOutput, ClientServerOutput, ServerOutput};
 
 /// Manager responsible for networking, constructed with [`ManagerBuilder`].
 /// Can be configured to be either a server, client or a client hosted server.
 pub struct Manager<H: NetworkHandler> {
     addr: SocketAddr,
     controller: NetworkController<H>,
+    output: OutputReceiver<H::Output>,
     _lifetime: ListenerLifetime,
 }
 
@@ -41,6 +37,13 @@ impl<H: NetworkHandler> Manager<H> {
     #[must_use]
     pub const fn server_addr(&self) -> SocketAddr {
         self.addr
+    }
+
+    /// Clone the manager's output receiver.
+    #[inline]
+    #[must_use]
+    pub fn output(&self) -> Receiver<H::Output> {
+        self.output.clone()
     }
 }
 
@@ -57,6 +60,7 @@ struct NoAddr;
 pub struct ManagerBuilder<HostOn, ConnectTo> {
     host: HostOn,
     connect: ConnectTo,
+    enable_output: bool,
 }
 
 impl ManagerBuilder<NoAddr, NoAddr> {
@@ -68,6 +72,7 @@ impl ManagerBuilder<NoAddr, NoAddr> {
         Self {
             host: NoAddr,
             connect: NoAddr,
+            enable_output: true,
         }
     }
 
@@ -78,6 +83,7 @@ impl ManagerBuilder<NoAddr, NoAddr> {
         ManagerBuilder {
             host: NoAddr,
             connect: Addr(remote),
+            enable_output: self.enable_output,
         }
     }
 
@@ -88,7 +94,19 @@ impl ManagerBuilder<NoAddr, NoAddr> {
         ManagerBuilder {
             host: Addr(local),
             connect: NoAddr,
+            enable_output: self.enable_output,
         }
+    }
+}
+
+// Any
+impl<HostOn, ConnectTo> ManagerBuilder<HostOn, ConnectTo> {
+    /// Disable sending output from the manager, effectively makes [`Manager::output`] useless.
+    #[inline]
+    #[must_use]
+    pub const fn disable_output(mut self) -> Self {
+        self.enable_output = false;
+        self
     }
 }
 
@@ -101,6 +119,7 @@ impl ManagerBuilder<Addr, NoAddr> {
         ManagerBuilder {
             host: Addr(self.host.0),
             connect: Addr(self.host.0),
+            enable_output: self.enable_output,
         }
     }
 
@@ -109,15 +128,16 @@ impl ManagerBuilder<Addr, NoAddr> {
     /// # Errors
     /// Returns an error if the address is unable to be used to listen on.
     #[inline]
-    pub fn startup(self) -> Result<ServerManager> {
+    pub fn startup(self) -> Result<Manager<ServerHandler>> {
         let (controller, listener) = new_network_interface();
         let addr = controller.listen(self.host.0)?;
 
-        let handler = ServerHandler::new(controller.clone());
+        let (handler, output) = ServerHandler::new(controller.clone(), self.enable_output);
         let lifetime = listener.start(handler);
         Ok(Manager {
             addr,
             controller,
+            output,
             _lifetime: lifetime,
         })
     }
@@ -130,15 +150,16 @@ impl ManagerBuilder<NoAddr, Addr> {
     /// # Errors
     /// Returns an error if the address is unable to be used to connect to.
     #[inline]
-    pub fn startup(self) -> Result<ClientManager> {
+    pub fn startup(self) -> Result<Manager<ClientHandler>> {
         let (controller, listener) = new_network_interface();
         let conn = controller.connect(self.connect.0)?;
 
-        let handler = ClientHandler::new(controller.clone(), conn);
+        let (handler, output) = ClientHandler::new(controller.clone(), conn, self.enable_output);
         let lifetime = listener.start(handler);
         Ok(Manager {
             addr: conn.addr(),
             controller,
+            output,
             _lifetime: lifetime,
         })
     }
@@ -151,16 +172,18 @@ impl ManagerBuilder<Addr, Addr> {
     /// # Errors
     /// Returns an error if the address is unable to be used to listen on.
     #[inline]
-    pub fn startup(self) -> Result<ClientServerManager> {
+    pub fn startup(self) -> Result<Manager<ClientServerHandler>> {
         let (controller, listener) = new_network_interface();
         let addr = controller.listen(self.host.0)?;
         let conn = controller.connect(addr)?;
 
-        let handler = ClientServerHandler::new(controller.clone(), conn);
+        let (handler, output) =
+            ClientServerHandler::new(controller.clone(), conn, self.enable_output);
         let lifetime = listener.start(handler);
         Ok(Manager {
             addr,
             controller,
+            output,
             _lifetime: lifetime,
         })
     }
