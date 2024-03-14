@@ -15,3 +15,7 @@ serde = { version = "1.0.197", features = ["derive"] }
 message-io = { version = "0.18.1", default-features = false, features = [
     "tcp",
 ] }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true, features = ["unstable"] }
+# simplelog = "0.12.1"

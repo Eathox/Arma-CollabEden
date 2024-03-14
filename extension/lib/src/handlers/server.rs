@@ -1,7 +1,21 @@
 use std::time::Instant;
 
-use super::{Message, OutputReceiver, OutputSender};
-use crate::network::{Endpoint, NetworkController, NetworkEvent, NetworkHandler};
+use super::SharedMessage;
+use crate::{
+    network::{ConnectionId, NetworkController, NetworkEvent, NetworkHandler},
+    OutputSender,
+};
+
+/// Server output events.
+#[derive(Debug, PartialEq, Eq)]
+pub enum ServerOutput {
+    /// New client connected.
+    ClientConnected(ConnectionId),
+    /// Client disconnected.
+    ClientDisconnected(ConnectionId),
+    /// Lost connection to the client.
+    LostConnection(ConnectionId),
+}
 
 #[derive(Debug)]
 pub enum ServerCommand {
@@ -9,36 +23,23 @@ pub enum ServerCommand {
     Ping,
 }
 
-/// Server output event, received through [`Manager::output`].
-///
-/// [`Manager::output`]: crate::Manager::output
-#[derive(Debug)]
-pub enum ServerOutput {}
-
 pub struct ServerHandler {
     network: NetworkController<Self>,
     output: OutputSender<ServerOutput>,
-    clients: Vec<Endpoint>,
+    clients: Vec<ConnectionId>,
 }
 
 impl ServerHandler {
-    pub fn new(
-        network: NetworkController<Self>,
-        enable_output: bool,
-    ) -> (Self, OutputReceiver<ServerOutput>) {
-        let (mut sender, receiver) = OutputSender::new();
-        if !enable_output {
-            sender.disable();
+    pub const fn new(network: NetworkController<Self>, output: OutputSender<ServerOutput>) -> Self {
+        Self {
+            network,
+            output,
+            clients: vec![],
         }
+    }
 
-        (
-            Self {
-                network,
-                output: sender,
-                clients: vec![],
-            },
-            receiver,
-        )
+    fn output(&mut self, output: ServerOutput) {
+        self.output.send(output);
     }
 
     fn disconnect(&self) {
@@ -50,28 +51,28 @@ impl ServerHandler {
 
     fn ping(&self) {
         for client in &self.clients {
-            self.network.send(*client, Message::Ping(Instant::now()));
+            self.network
+                .send(*client, SharedMessage::Ping(Instant::now()));
         }
     }
 }
 
 impl NetworkHandler for ServerHandler {
-    type Message = Message;
+    type Message = SharedMessage;
     type Command = ServerCommand;
-    type Output = ServerOutput;
 
     fn handle_event(&mut self, event: NetworkEvent) {
         match event {
             NetworkEvent::NewConnection(conn) => {
-                println!("[Server] New connection from: {conn:?}");
+                self.output(ServerOutput::ClientConnected(conn));
                 self.clients.push(conn);
             }
             NetworkEvent::ConnectionLost(conn, disconnected) => {
-                if disconnected {
-                    println!("[Server] Client disconnected: {conn:?}");
+                self.output(if disconnected {
+                    ServerOutput::ClientDisconnected(conn)
                 } else {
-                    println!("[Server] Lost connection to client: {conn:?}");
-                }
+                    ServerOutput::LostConnection(conn)
+                });
                 self.clients.retain(|c| c != &conn);
             }
             NetworkEvent::ConnectionAttempt(_, _) => {
@@ -80,12 +81,12 @@ impl NetworkHandler for ServerHandler {
         }
     }
 
-    fn handle_message(&mut self, conn: Endpoint, message: &Self::Message) {
-        if let Message::Ping(elapsed) = message {
-            self.network.send(conn, Message::Pong(*elapsed));
+    fn handle_message(&mut self, conn: ConnectionId, message: &Self::Message) {
+        if let SharedMessage::Ping(elapsed) = message {
+            self.network.send(conn, SharedMessage::Pong(*elapsed));
         }
 
-        if let Message::Pong(elapsed) = message {
+        if let SharedMessage::Pong(elapsed) = message {
             println!("[Server] Pong from {conn:?} in {:?}", elapsed.elapsed());
         } else {
             println!("[Server] Got message: {message:?} from {conn:?}");

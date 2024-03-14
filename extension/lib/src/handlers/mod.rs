@@ -1,19 +1,15 @@
 use std::time::Instant;
 
-use crossbeam_channel::{unbounded, Receiver, Sender};
-
 pub mod client;
-pub mod client_host;
 pub mod server;
 
 use crate::network::NetworkSerde;
 
 pub use client::{ClientCommand, ClientHandler, ClientOutput};
-pub use client_host::{ClientHostHandler, ClientHostOutput};
 pub use server::{ServerCommand, ServerHandler, ServerOutput};
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub enum Message {
+pub enum SharedMessage {
     #[serde(with = "instant_serde")]
     Ping(Instant),
     #[serde(with = "instant_serde")]
@@ -22,7 +18,7 @@ pub enum Message {
     ArmaEvent(String, arma_rs::Value),
 }
 
-impl NetworkSerde for Message {}
+impl NetworkSerde for SharedMessage {}
 
 /// Serde impls for [`std::time::Instant`] to be used with `#[serde(with = "instant_serde")]`. Implemented by converting to and from [`std::time::Duration`].
 mod instant_serde {
@@ -45,40 +41,5 @@ mod instant_serde {
         Instant::now()
             .checked_sub(duration)
             .ok_or_else(|| Error::custom("instant is out of bounds"))
-    }
-}
-
-pub type OutputReceiver<O> = Receiver<O>;
-
-struct OutputSender<O> {
-    output: Sender<O>,
-    output_enabled: bool,
-}
-
-impl<O> OutputSender<O> {
-    fn new() -> (Self, Receiver<O>) {
-        let (sender, receiver) = unbounded();
-        (
-            Self {
-                output: sender,
-                output_enabled: true,
-            },
-            receiver,
-        )
-    }
-
-    fn disable(&mut self) {
-        self.output_enabled = false;
-    }
-
-    fn send(&mut self, output: O) {
-        if !self.output_enabled {
-            return;
-        };
-
-        if self.output.send(output).is_err() {
-            self.disable();
-            error!("Output channel is disconnected");
-        };
     }
 }

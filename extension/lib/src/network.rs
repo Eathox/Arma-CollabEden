@@ -1,24 +1,41 @@
 use std::{collections::HashSet, net::SocketAddr};
 
 use message_io::{
-    network::{NetEvent, Transport},
+    network::{Endpoint, NetEvent, Transport},
     node::{self, NodeEvent, NodeHandler, NodeListener},
 };
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{Error, Result};
 
-pub use message_io::network::Endpoint;
+/// Id of a connection on the network.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ConnectionId(Endpoint);
 
-/// Event that can occur on the network interface.
+impl ConnectionId {
+    /// Address of the connection.
+    #[inline]
+    #[must_use]
+    pub fn addr(&self) -> SocketAddr {
+        self.0.addr()
+    }
+}
+
+impl std::fmt::Display for ConnectionId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.resource_id())
+    }
+}
+
+/// Events that can occur on the network interface.
 #[derive(Debug, Clone)]
 pub enum NetworkEvent {
     /// Accepted new connection. Only emitted for Servers.
-    NewConnection(Endpoint),
+    NewConnection(ConnectionId),
     /// Attempted to establish a connection, bool is true if succeeded. Only emitted for Clients.
-    ConnectionAttempt(Endpoint, bool),
+    ConnectionAttempt(ConnectionId, bool),
     /// Lost connection. bool is true if the connection was explicitly disconnected.
-    ConnectionLost(Endpoint, bool),
+    ConnectionLost(ConnectionId, bool),
 }
 
 /// Handler used for implementing actual program logic on top of a [`NetworkListener`].
@@ -29,14 +46,11 @@ pub trait NetworkHandler: Sized + Send + 'static {
     /// Command thats send to the handler from outside the listener loop using [`NetworkController::command`].
     type Command: Send + 'static;
 
-    /// Handler output for the end user of this library.
-    type Output;
-
     /// Handle a network event.
     fn handle_event(&mut self, event: NetworkEvent);
 
     /// Handle a network message.
-    fn handle_message(&mut self, conn: Endpoint, message: &Self::Message);
+    fn handle_message(&mut self, conn: ConnectionId, message: &Self::Message);
 
     /// Handle a command.
     fn handle_command(&mut self, command: &Self::Command);
@@ -69,6 +83,7 @@ enum InternalMessage<M> {
     Handler(M),
 }
 
+impl NetworkSerde for () {}
 impl<M: NetworkSerde> NetworkSerde for InternalMessage<M> {}
 
 /// Create a new network interface returning its [`NetworkController`] and [`NetworkListener`].
@@ -92,33 +107,35 @@ impl<H: NetworkHandler> NetworkController<H> {
     /// # Errors
     /// Returns an error if unable to listen on the given address.
     pub fn listen(&self, addr: SocketAddr) -> Result<SocketAddr> {
-        let (_, addr) = self
+        let (_, new_addr) = self
             .0
             .network()
             .listen(Transport::FramedTcp, addr)
             .map_err(|err| Error::Listen(addr, err))?;
-        Ok(addr)
+        let new_addr = SocketAddr::new(addr.ip(), new_addr.port()); // Fix bug where sometimes 0.0.0.0 is returned with automatic port selection
+        Ok(new_addr)
     }
 
-    /// Connect to the given address. Returns id used to identify the connection.
+    /// Connect to the given address. Returns id used to identify the connection and own address its connected from.
     ///
     /// # Errors
     /// Returns an error if the address couldn't be used for a connection attempt.\
     /// *Note: this will never error if the connection failed, instead that is reflected in [`NetworkEvent::ConnectionAttempt`].*
-    pub fn connect(&self, addr: SocketAddr) -> Result<Endpoint> {
-        let (conn, _) = self
+    pub fn connect(&self, addr: SocketAddr) -> Result<(ConnectionId, SocketAddr)> {
+        let (conn, new_addr) = self
             .0
             .network()
             .connect(Transport::FramedTcp, addr)
             .map_err(|err| Error::ConnectAttempt(addr, err))?;
-        Ok(conn)
+        let new_addr = SocketAddr::new(addr.ip(), new_addr.port()); // Fix bug where sometimes 0.0.0.0 is returned with automatic port selection
+        Ok((ConnectionId(conn), new_addr))
     }
 
     /// Remove the given connection. This does not emit a [`NetworkEvent::ConnectionLost`] to the event loop.
     ///
     /// Returns `false` if the connection is already removed.
-    pub fn remove(&self, conn: Endpoint) -> bool {
-        let id = conn.resource_id();
+    pub fn remove(&self, conn: ConnectionId) -> bool {
+        let id = conn.0.resource_id();
         if self.0.network().is_ready(id) == Some(true) {
             self.send_internal(conn, &InternalMessage::Disconnected);
             self.0.network().remove(id)
@@ -128,14 +145,14 @@ impl<H: NetworkHandler> NetworkController<H> {
     }
 
     /// Send a message to the given connection.
-    pub fn send(&self, conn: Endpoint, message: H::Message) {
+    pub fn send(&self, conn: ConnectionId, message: H::Message) {
         self.send_internal(conn, &InternalMessage::Handler(message));
     }
 
-    fn send_internal(&self, conn: Endpoint, message: &InternalMessage<H::Message>) {
+    fn send_internal(&self, conn: ConnectionId, message: &InternalMessage<H::Message>) {
         match message.to_net() {
             Ok(bytes) => {
-                self.0.network().send(conn, &bytes);
+                self.0.network().send(conn.0, &bytes);
             }
             Err(err) => error!("failed to send message: {err}"),
         }
@@ -180,15 +197,22 @@ impl<H: NetworkHandler> NetworkListener<H> {
 
             match event {
                 NodeEvent::Network(net_event) => {
+                    let conn = match net_event {
+                        NetEvent::Accepted(conn, _)
+                        | NetEvent::Connected(conn, _)
+                        | NetEvent::Disconnected(conn)
+                        | NetEvent::Message(conn, _) => ConnectionId(conn),
+                    };
+
                     let event = match net_event {
-                        NetEvent::Message(conn, bytes) => {
+                        NetEvent::Message(_, bytes) => {
                             map_message(conn, bytes);
                             return;
                         }
 
-                        NetEvent::Accepted(conn, _) => NetworkEvent::NewConnection(conn),
-                        NetEvent::Connected(conn, ok) => NetworkEvent::ConnectionAttempt(conn, ok),
-                        NetEvent::Disconnected(conn) => {
+                        NetEvent::Accepted(_, _) => NetworkEvent::NewConnection(conn),
+                        NetEvent::Connected(_, ok) => NetworkEvent::ConnectionAttempt(conn, ok),
+                        NetEvent::Disconnected(_) => {
                             let disconnected = disconnects.remove(&conn);
                             NetworkEvent::ConnectionLost(conn, disconnected)
                         }
