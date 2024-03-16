@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use super::SharedMessage;
 use crate::{
@@ -15,6 +15,9 @@ pub enum ServerOutput {
     ClientDisconnected(ConnectionId),
     /// Lost connection to the client.
     LostConnection(ConnectionId),
+
+    /// Ping.
+    Ping(Duration),
 }
 
 #[derive(Debug)]
@@ -82,14 +85,14 @@ impl NetworkHandler for ServerHandler {
     }
 
     fn handle_message(&mut self, conn: ConnectionId, message: &Self::Message) {
-        if let SharedMessage::Ping(elapsed) = message {
-            self.network.send(conn, SharedMessage::Pong(*elapsed));
-        }
-
-        if let SharedMessage::Pong(elapsed) = message {
-            println!("[Server] Pong from {conn:?} in {:?}", elapsed.elapsed());
-        } else {
-            println!("[Server] Got message: {message:?} from {conn:?}");
+        match message {
+            SharedMessage::Ping(instant) => {
+                self.network.send(conn, SharedMessage::Pong(*instant));
+            }
+            SharedMessage::Pong(instant) => {
+                self.output(ServerOutput::Ping(instant.elapsed()));
+            }
+            SharedMessage::ArmaEvent(_) => todo!(),
         }
     }
 
