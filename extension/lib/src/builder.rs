@@ -55,9 +55,9 @@ impl ManagerBuilder<None, None> {
     }
 }
 
-/// Any
+// Any
 impl<H, C> ManagerBuilder<H, C> {
-    /// Configure to have a ping loop.
+    /// Disable constant ping loop.
     #[inline]
     #[must_use]
     pub fn without_ping(self) -> Self {

@@ -16,8 +16,8 @@ pub enum ServerOutput {
     /// Lost connection to the client.
     LostConnection(ConnectionId),
 
-    /// Ping.
-    Ping(Duration),
+    /// Ping to the client.
+    Ping(ConnectionId, Duration),
 }
 
 #[derive(Debug)]
@@ -103,7 +103,7 @@ impl NetworkHandler for ServerHandler {
                 self.network.send(conn, SharedMessage::Pong(*instant));
             }
             SharedMessage::Pong(instant) => {
-                self.output(ServerOutput::Ping(instant.elapsed()));
+                self.output(ServerOutput::Ping(conn, instant.elapsed()));
             }
             SharedMessage::ArmaEvent(_) => todo!(),
         }
