@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use super::SharedMessage;
+use super::{SharedMessage, PING_INTERVAL};
 use crate::{
     network::{ConnectionId, NetworkController, NetworkEvent, NetworkHandler},
     OutputSender,
@@ -23,7 +23,7 @@ pub enum ServerOutput {
 #[derive(Debug)]
 pub enum ServerCommand {
     Disconnect,
-    Ping,
+    PingLoop,
 }
 
 pub struct ServerHandler {
@@ -33,7 +33,15 @@ pub struct ServerHandler {
 }
 
 impl ServerHandler {
-    pub const fn new(network: NetworkController<Self>, output: OutputSender<ServerOutput>) -> Self {
+    pub fn new(
+        network: NetworkController<Self>,
+        output: OutputSender<ServerOutput>,
+        ping_loop: bool,
+    ) -> Self {
+        if ping_loop {
+            network.delayed_command(ServerCommand::PingLoop, PING_INTERVAL);
+        };
+
         Self {
             network,
             output,
@@ -52,10 +60,15 @@ impl ServerHandler {
         self.network.stop();
     }
 
-    fn ping(&self) {
+    fn ping(&self, repeat: bool) {
         for client in &self.clients {
             self.network
                 .send(*client, SharedMessage::Ping(Instant::now()));
+        }
+
+        if repeat {
+            self.network
+                .delayed_command(ServerCommand::PingLoop, PING_INTERVAL);
         }
     }
 }
@@ -99,7 +112,7 @@ impl NetworkHandler for ServerHandler {
     fn handle_command(&mut self, command: &Self::Command) {
         match command {
             ServerCommand::Disconnect => self.disconnect(),
-            ServerCommand::Ping => self.ping(),
+            ServerCommand::PingLoop => self.ping(true),
         }
     }
 }

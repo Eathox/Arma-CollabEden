@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 pub mod client;
 pub mod server;
@@ -7,6 +7,8 @@ use crate::network::NetworkSerde;
 
 pub use client::{ClientCommand, ClientHandler, ClientOutput};
 pub use server::{ServerCommand, ServerHandler, ServerOutput};
+
+const PING_INTERVAL: Duration = Duration::from_secs(10);
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum SharedMessage {

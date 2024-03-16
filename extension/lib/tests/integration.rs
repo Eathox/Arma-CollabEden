@@ -17,8 +17,13 @@ fn recv_output<O>(output: &Receiver<O>) -> O {
 
 #[test]
 fn disconnect() {
-    let (server, server_output) = ManagerBuilder::new().host_on(LOCAL_ADDR).startup().unwrap();
+    let (server, server_output) = ManagerBuilder::new()
+        .without_ping()
+        .host_on(LOCAL_ADDR)
+        .startup()
+        .unwrap();
     let (client, client_output) = ManagerBuilder::new()
+        .without_ping()
         .connect_to(server.server_addr())
         .startup()
         .unwrap();
@@ -40,8 +45,13 @@ fn disconnect() {
 
 #[test]
 fn server_disconnect() {
-    let (server, server_output) = ManagerBuilder::new().host_on(LOCAL_ADDR).startup().unwrap();
+    let (server, server_output) = ManagerBuilder::new()
+        .without_ping()
+        .host_on(LOCAL_ADDR)
+        .startup()
+        .unwrap();
     let (client, client_output) = ManagerBuilder::new()
+        .without_ping()
         .connect_to(server.server_addr())
         .startup()
         .unwrap();

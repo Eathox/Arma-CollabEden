@@ -16,6 +16,7 @@ pub struct None;
 pub struct ManagerBuilder<H, C> {
     host: H,
     connect: C,
+    ping_enabled: bool,
 }
 
 impl ManagerBuilder<None, None> {
@@ -27,6 +28,7 @@ impl ManagerBuilder<None, None> {
         Self {
             host: None,
             connect: None,
+            ping_enabled: true,
         }
     }
 
@@ -37,6 +39,7 @@ impl ManagerBuilder<None, None> {
         ManagerBuilder {
             host: None,
             connect: Connect(remote),
+            ping_enabled: self.ping_enabled,
         }
     }
 
@@ -47,6 +50,20 @@ impl ManagerBuilder<None, None> {
         ManagerBuilder {
             host: Host(local),
             connect: None,
+            ping_enabled: self.ping_enabled,
+        }
+    }
+}
+
+/// Any
+impl<H, C> ManagerBuilder<H, C> {
+    /// Configure to have a ping loop.
+    #[inline]
+    #[must_use]
+    pub fn without_ping(self) -> Self {
+        Self {
+            ping_enabled: false,
+            ..self
         }
     }
 }
@@ -64,7 +81,7 @@ impl ManagerBuilder<Host, None> {
         let server_addr = controller.listen(self.host.0)?;
 
         let (sender, receiver) = OutputSender::new();
-        let handler = ServerHandler::new(controller.clone(), sender);
+        let handler = ServerHandler::new(controller.clone(), sender, self.ping_enabled);
 
         let manager = ServerManager::new(SharedManager {
             _lifetime: listener.start(handler),
@@ -89,7 +106,7 @@ impl ManagerBuilder<None, Connect> {
         let (conn, addr) = controller.connect(self.connect.0)?;
 
         let (sender, receiver) = OutputSender::new();
-        let handler = ClientHandler::new(controller.clone(), sender, conn);
+        let handler = ClientHandler::new(controller.clone(), sender, conn, self.ping_enabled);
 
         let manager = ClientManager::new(SharedManager {
             _lifetime: listener.start(handler),

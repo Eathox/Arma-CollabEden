@@ -1,4 +1,4 @@
-use std::{collections::HashSet, net::SocketAddr};
+use std::{collections::HashSet, net::SocketAddr, time::Duration};
 
 use message_io::{
     network::{Endpoint, NetEvent, Transport},
@@ -163,6 +163,11 @@ impl<H: NetworkHandler> NetworkController<H> {
         self.0.signals().send(command);
     }
 
+    /// Send a delayed command to the [`NetworkHandler`].
+    pub fn delayed_command(&self, command: H::Command, wait: Duration) {
+        self.0.signals().send_with_timer(command, wait);
+    }
+
     /// Shut down the controller's corresponding [`NetworkListener`].
     /// Has no effect if the listener isn't running.
     pub fn stop(&self) {
@@ -197,22 +202,20 @@ impl<H: NetworkHandler> NetworkListener<H> {
 
             match event {
                 NodeEvent::Network(net_event) => {
-                    let conn = match net_event {
-                        NetEvent::Accepted(conn, _)
-                        | NetEvent::Connected(conn, _)
-                        | NetEvent::Disconnected(conn)
-                        | NetEvent::Message(conn, _) => ConnectionId(conn),
-                    };
-
                     let event = match net_event {
-                        NetEvent::Message(_, bytes) => {
-                            map_message(conn, bytes);
+                        NetEvent::Message(conn, bytes) => {
+                            map_message(ConnectionId(conn), bytes);
                             return;
                         }
 
-                        NetEvent::Accepted(_, _) => NetworkEvent::NewConnection(conn),
-                        NetEvent::Connected(_, ok) => NetworkEvent::ConnectionAttempt(conn, ok),
-                        NetEvent::Disconnected(_) => {
+                        NetEvent::Accepted(conn, _) => {
+                            NetworkEvent::NewConnection(ConnectionId(conn))
+                        }
+                        NetEvent::Connected(conn, ok) => {
+                            NetworkEvent::ConnectionAttempt(ConnectionId(conn), ok)
+                        }
+                        NetEvent::Disconnected(conn) => {
+                            let conn = ConnectionId(conn);
                             let disconnected = disconnects.remove(&conn);
                             NetworkEvent::ConnectionLost(conn, disconnected)
                         }
