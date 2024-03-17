@@ -1,14 +1,14 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use super::{SharedMessage, PING_INTERVAL};
+use super::{server, PingPayload, PING_INTERVAL};
 use crate::{
-    network::{ConnectionId, NetworkController, NetworkEvent, NetworkHandler},
+    network::{ConnectionId, NetworkController, NetworkEvent, NetworkHandler, NetworkSerde},
     OutputSender,
 };
 
 /// Client output events.
 #[derive(Debug, PartialEq, Eq)]
-pub enum ClientOutput {
+pub enum Output {
     /// Attempted to connect to the server, `true` if connected.
     Connected(bool),
     /// Server disconnected.
@@ -16,31 +16,39 @@ pub enum ClientOutput {
     /// Lost connection to the server.
     LostConnection,
 
-    /// Ping.
+    /// Ping to the server.
     Ping(Duration),
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub enum Message {
+    Ping(PingPayload),
+    Pong(PingPayload),
+}
+
+impl NetworkSerde for Message {}
+
 #[derive(Debug)]
-pub enum ClientCommand {
+pub enum Command {
     Disconnect,
     PingLoop,
 }
 
-pub struct ClientHandler {
+pub struct Handler {
     network: NetworkController<Self>,
-    output: OutputSender<ClientOutput>,
+    output: OutputSender<Output>,
     server: ConnectionId,
 }
 
-impl ClientHandler {
+impl Handler {
     pub fn new(
         network: NetworkController<Self>,
-        output: OutputSender<ClientOutput>,
+        output: OutputSender<Output>,
         server: ConnectionId,
         ping_loop: bool,
     ) -> Self {
         if ping_loop {
-            network.delayed_command(ClientCommand::PingLoop, PING_INTERVAL);
+            network.delayed_command(Command::PingLoop, PING_INTERVAL);
         };
 
         Self {
@@ -50,7 +58,7 @@ impl ClientHandler {
         }
     }
 
-    fn output(&mut self, output: ClientOutput) {
+    fn output(&mut self, output: Output) {
         self.output.send(output);
     }
 
@@ -61,32 +69,33 @@ impl ClientHandler {
 
     fn ping(&self, repeat: bool) {
         self.network
-            .send(self.server, SharedMessage::Ping(Instant::now()));
+            .send(self.server, Message::Ping(PingPayload::new()));
 
         if repeat {
             self.network
-                .delayed_command(ClientCommand::PingLoop, PING_INTERVAL);
+                .delayed_command(Command::PingLoop, PING_INTERVAL);
         }
     }
 }
 
-impl NetworkHandler for ClientHandler {
-    type Message = SharedMessage;
-    type Command = ClientCommand;
+impl NetworkHandler for Handler {
+    type SendMessage = Message;
+    type RecvMessage = server::Message;
+    type Command = Command;
 
     fn handle_event(&mut self, event: NetworkEvent) {
         match event {
             NetworkEvent::ConnectionAttempt(_, succeeded) => {
-                self.output(ClientOutput::Connected(succeeded));
+                self.output(Output::Connected(succeeded));
                 if !succeeded {
                     self.network.stop();
                 }
             }
             NetworkEvent::ConnectionLost(_, disconnected) => {
                 self.output(if disconnected {
-                    ClientOutput::ServerDisconnected
+                    Output::ServerDisconnected
                 } else {
-                    ClientOutput::LostConnection
+                    Output::LostConnection
                 });
                 self.network.stop();
             }
@@ -94,22 +103,21 @@ impl NetworkHandler for ClientHandler {
         }
     }
 
-    fn handle_message(&mut self, conn: ConnectionId, message: &Self::Message) {
+    fn handle_message(&mut self, conn: ConnectionId, message: Self::RecvMessage) {
         match message {
-            SharedMessage::Ping(instant) => {
-                self.network.send(conn, SharedMessage::Pong(*instant));
+            Self::RecvMessage::Ping(payload) => {
+                self.network.send(conn, Message::Pong(payload));
             }
-            SharedMessage::Pong(instant) => {
-                self.output(ClientOutput::Ping(instant.elapsed()));
+            Self::RecvMessage::Pong(payload) => {
+                self.output(Output::Ping(payload.elapsed()));
             }
-            SharedMessage::ArmaEvent(_) => todo!(),
         }
     }
 
-    fn handle_command(&mut self, command: &Self::Command) {
+    fn handle_command(&mut self, command: Self::Command) {
         match command {
-            ClientCommand::Disconnect => self.disconnect(),
-            ClientCommand::PingLoop => self.ping(true),
+            Command::Disconnect => self.disconnect(),
+            Command::PingLoop => self.ping(true),
         }
     }
 }

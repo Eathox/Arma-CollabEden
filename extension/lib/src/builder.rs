@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use crate::{
-    handlers::{ClientHandler, ClientOutput, ServerHandler, ServerOutput},
+    handlers::{client, server},
     network::new_network_interface,
     ClientManager, OutputReceiver, OutputSender, Result, ServerManager, SharedManager,
 };
@@ -76,12 +76,12 @@ impl ManagerBuilder<Host, None> {
     /// # Errors
     /// Returns an error if the address is unable to be used to listen on.
     #[inline]
-    pub fn startup(&self) -> Result<(ServerManager, OutputReceiver<ServerOutput>)> {
+    pub fn startup(&self) -> Result<(ServerManager, OutputReceiver<server::Output>)> {
         let (controller, listener) = new_network_interface();
         let server_addr = controller.listen(self.host.0)?;
 
         let (sender, receiver) = OutputSender::new();
-        let handler = ServerHandler::new(controller.clone(), sender, self.ping_enabled);
+        let handler = server::Handler::new(controller.clone(), sender, self.ping_enabled);
 
         let manager = ServerManager::new(SharedManager {
             _lifetime: listener.start(handler),
@@ -101,12 +101,12 @@ impl ManagerBuilder<None, Connect> {
     /// # Errors
     /// Returns an error if the address is unable to be used to connect to.
     #[inline]
-    pub fn startup(&self) -> Result<(ClientManager, OutputReceiver<ClientOutput>)> {
+    pub fn startup(&self) -> Result<(ClientManager, OutputReceiver<client::Output>)> {
         let (controller, listener) = new_network_interface();
         let (conn, addr) = controller.connect(self.connect.0)?;
 
         let (sender, receiver) = OutputSender::new();
-        let handler = ClientHandler::new(controller.clone(), sender, conn, self.ping_enabled);
+        let handler = client::Handler::new(controller.clone(), sender, conn, self.ping_enabled);
 
         let manager = ClientManager::new(SharedManager {
             _lifetime: listener.start(handler),

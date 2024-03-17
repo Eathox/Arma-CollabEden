@@ -3,24 +3,20 @@ use std::time::{Duration, Instant};
 pub mod client;
 pub mod server;
 
-use crate::network::NetworkSerde;
-
-pub use client::{ClientCommand, ClientHandler, ClientOutput};
-pub use server::{ServerCommand, ServerHandler, ServerOutput};
-
-const PING_INTERVAL: Duration = Duration::from_secs(10);
+const PING_INTERVAL: Duration = Duration::from_millis(500);
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub enum SharedMessage {
-    #[serde(with = "instant_serde")]
-    Ping(Instant),
-    #[serde(with = "instant_serde")]
-    Pong(Instant),
+pub struct PingPayload(#[serde(with = "instant_serde")] Instant);
 
-    ArmaEvent(String, arma_rs::Value),
+impl PingPayload {
+    pub fn new() -> Self {
+        Self(Instant::now())
+    }
+
+    pub fn elapsed(&self) -> Duration {
+        self.0.elapsed()
+    }
 }
-
-impl NetworkSerde for SharedMessage {}
 
 /// Serde impls for [`std::time::Instant`] to be used with `#[serde(with = "instant_serde")]`. Implemented by converting to and from [`std::time::Duration`].
 mod instant_serde {

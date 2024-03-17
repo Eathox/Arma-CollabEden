@@ -19,8 +19,8 @@ mod network;
 
 pub use builder::ManagerBuilder;
 pub use error::{Error, Result};
-use handlers::{ClientCommand, ClientHandler, ServerCommand, ServerHandler};
-pub use handlers::{ClientOutput, ServerOutput};
+use handlers::{client, server};
+pub use handlers::{client::Output as ClientOutput, server::Output as ServerOutput};
 pub use network::ConnectionId;
 use network::{ListenerLifetime, NetworkController, NetworkHandler};
 
@@ -50,7 +50,7 @@ struct SharedManager<H: NetworkHandler> {
 }
 
 macro_rules! impl_shared_manager {
-    ($manager:ident, $command:ident) => {
+    ($manager:ident, $module:ident) => {
         impl InstanceManager for $manager {
             #[inline]
             #[must_use]
@@ -66,7 +66,7 @@ macro_rules! impl_shared_manager {
 
             #[inline]
             fn disconnect(&self) {
-                self.shared.controller.command($command::Disconnect);
+                self.shared.controller.command($module::Command::Disconnect);
             }
 
             #[inline]
@@ -87,13 +87,13 @@ macro_rules! impl_shared_manager {
 /// Dedicated server network manager.
 #[must_use]
 pub struct ServerManager {
-    shared: SharedManager<ServerHandler>,
+    shared: SharedManager<server::Handler>,
 }
 
-impl_shared_manager!(ServerManager, ServerCommand);
+impl_shared_manager!(ServerManager, server);
 
 impl ServerManager {
-    const fn new(shared: SharedManager<ServerHandler>) -> Self {
+    const fn new(shared: SharedManager<server::Handler>) -> Self {
         Self { shared }
     }
 }
@@ -101,13 +101,13 @@ impl ServerManager {
 /// Client network manager.
 #[must_use]
 pub struct ClientManager {
-    shared: SharedManager<ClientHandler>,
+    shared: SharedManager<client::Handler>,
 }
 
-impl_shared_manager!(ClientManager, ClientCommand);
+impl_shared_manager!(ClientManager, client);
 
 impl ClientManager {
-    const fn new(shared: SharedManager<ClientHandler>) -> Self {
+    const fn new(shared: SharedManager<client::Handler>) -> Self {
         Self { shared }
     }
 }

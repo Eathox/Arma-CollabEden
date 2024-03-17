@@ -9,10 +9,17 @@ use serde::{de::DeserializeOwned, Serialize};
 use crate::{Error, Result};
 
 /// Id of a connection on the network.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ConnectionId(Endpoint);
 
 impl ConnectionId {
+    /// Unique ID of the connection.
+    #[inline]
+    #[must_use]
+    pub fn id(&self) -> usize {
+        self.0.resource_id().base_value()
+    }
+
     /// Address of the connection.
     #[inline]
     #[must_use]
@@ -21,9 +28,18 @@ impl ConnectionId {
     }
 }
 
+impl std::fmt::Debug for ConnectionId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ConnectionId")
+            .field("id", &self.id())
+            .field("addr", &self.addr())
+            .finish()
+    }
+}
+
 impl std::fmt::Display for ConnectionId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0.resource_id())
+        write!(f, "#{}", self.id())
     }
 }
 
@@ -40,8 +56,11 @@ pub enum NetworkEvent {
 
 /// Handler used for implementing actual program logic on top of a [`NetworkListener`].
 pub trait NetworkHandler: Sized + Send + 'static {
-    /// Message send and received by this handler.
-    type Message: NetworkSerde + Send + 'static;
+    /// Message received by this handler.
+    type RecvMessage: NetworkSerde + Send + 'static;
+
+    /// Message send by this handler.
+    type SendMessage: NetworkSerde + Send + 'static;
 
     /// Command thats send to the handler from outside the listener loop using [`NetworkController::command`].
     type Command: Send + 'static;
@@ -50,10 +69,10 @@ pub trait NetworkHandler: Sized + Send + 'static {
     fn handle_event(&mut self, event: NetworkEvent);
 
     /// Handle a network message.
-    fn handle_message(&mut self, conn: ConnectionId, message: &Self::Message);
+    fn handle_message(&mut self, conn: ConnectionId, message: Self::RecvMessage);
 
     /// Handle a command.
-    fn handle_command(&mut self, command: &Self::Command);
+    fn handle_command(&mut self, command: Self::Command);
 }
 
 /// Type that can be sent over network interface.
@@ -145,11 +164,11 @@ impl<H: NetworkHandler> NetworkController<H> {
     }
 
     /// Send a message to the given connection.
-    pub fn send(&self, conn: ConnectionId, message: H::Message) {
+    pub fn send(&self, conn: ConnectionId, message: H::SendMessage) {
         self.send_internal(conn, &InternalMessage::Handler(message));
     }
 
-    fn send_internal(&self, conn: ConnectionId, message: &InternalMessage<H::Message>) {
+    fn send_internal(&self, conn: ConnectionId, message: &InternalMessage<H::SendMessage>) {
         match message.to_net() {
             Ok(bytes) => {
                 self.0.network().send(conn.0, &bytes);
@@ -195,7 +214,7 @@ impl<H: NetworkHandler> NetworkListener<H> {
                         disconnects.insert(conn);
                     }
                     InternalMessage::Handler(message) => {
-                        handler.handle_message(conn, &message);
+                        handler.handle_message(conn, message);
                     }
                 },
             };
@@ -223,7 +242,7 @@ impl<H: NetworkHandler> NetworkListener<H> {
                     handler.handle_event(event);
                 }
                 NodeEvent::Signal(command) => {
-                    handler.handle_command(&command);
+                    handler.handle_command(command);
                 }
             }
         })

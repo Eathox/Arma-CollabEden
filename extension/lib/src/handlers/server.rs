@@ -1,14 +1,14 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use super::{SharedMessage, PING_INTERVAL};
+use super::{client, PingPayload, PING_INTERVAL};
 use crate::{
-    network::{ConnectionId, NetworkController, NetworkEvent, NetworkHandler},
+    network::{ConnectionId, NetworkController, NetworkEvent, NetworkHandler, NetworkSerde},
     OutputSender,
 };
 
 /// Server output events.
 #[derive(Debug, PartialEq, Eq)]
-pub enum ServerOutput {
+pub enum Output {
     /// New client connected.
     ClientConnected(ConnectionId),
     /// Client disconnected.
@@ -20,26 +20,34 @@ pub enum ServerOutput {
     Ping(ConnectionId, Duration),
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub enum Message {
+    Ping(PingPayload),
+    Pong(PingPayload),
+}
+
+impl NetworkSerde for Message {}
+
 #[derive(Debug)]
-pub enum ServerCommand {
+pub enum Command {
     Disconnect,
     PingLoop,
 }
 
-pub struct ServerHandler {
+pub struct Handler {
     network: NetworkController<Self>,
-    output: OutputSender<ServerOutput>,
+    output: OutputSender<Output>,
     clients: Vec<ConnectionId>,
 }
 
-impl ServerHandler {
+impl Handler {
     pub fn new(
         network: NetworkController<Self>,
-        output: OutputSender<ServerOutput>,
+        output: OutputSender<Output>,
         ping_loop: bool,
     ) -> Self {
         if ping_loop {
-            network.delayed_command(ServerCommand::PingLoop, PING_INTERVAL);
+            network.delayed_command(Command::PingLoop, PING_INTERVAL);
         };
 
         Self {
@@ -49,7 +57,7 @@ impl ServerHandler {
         }
     }
 
-    fn output(&mut self, output: ServerOutput) {
+    fn output(&mut self, output: Output) {
         self.output.send(output);
     }
 
@@ -63,31 +71,32 @@ impl ServerHandler {
     fn ping(&self, repeat: bool) {
         for client in &self.clients {
             self.network
-                .send(*client, SharedMessage::Ping(Instant::now()));
+                .send(*client, Message::Ping(PingPayload::new()));
         }
 
         if repeat {
             self.network
-                .delayed_command(ServerCommand::PingLoop, PING_INTERVAL);
+                .delayed_command(Command::PingLoop, PING_INTERVAL);
         }
     }
 }
 
-impl NetworkHandler for ServerHandler {
-    type Message = SharedMessage;
-    type Command = ServerCommand;
+impl NetworkHandler for Handler {
+    type RecvMessage = client::Message;
+    type SendMessage = Message;
+    type Command = Command;
 
     fn handle_event(&mut self, event: NetworkEvent) {
         match event {
             NetworkEvent::NewConnection(conn) => {
-                self.output(ServerOutput::ClientConnected(conn));
+                self.output(Output::ClientConnected(conn));
                 self.clients.push(conn);
             }
             NetworkEvent::ConnectionLost(conn, disconnected) => {
                 self.output(if disconnected {
-                    ServerOutput::ClientDisconnected(conn)
+                    Output::ClientDisconnected(conn)
                 } else {
-                    ServerOutput::LostConnection(conn)
+                    Output::LostConnection(conn)
                 });
                 self.clients.retain(|c| c != &conn);
             }
@@ -97,22 +106,21 @@ impl NetworkHandler for ServerHandler {
         }
     }
 
-    fn handle_message(&mut self, conn: ConnectionId, message: &Self::Message) {
+    fn handle_message(&mut self, conn: ConnectionId, message: Self::RecvMessage) {
         match message {
-            SharedMessage::Ping(instant) => {
-                self.network.send(conn, SharedMessage::Pong(*instant));
+            Self::RecvMessage::Ping(payload) => {
+                self.network.send(conn, Message::Pong(payload));
             }
-            SharedMessage::Pong(instant) => {
-                self.output(ServerOutput::Ping(conn, instant.elapsed()));
+            Self::RecvMessage::Pong(payload) => {
+                self.output(Output::Ping(conn, payload.elapsed()));
             }
-            SharedMessage::ArmaEvent(_) => todo!(),
         }
     }
 
-    fn handle_command(&mut self, command: &Self::Command) {
+    fn handle_command(&mut self, command: Self::Command) {
         match command {
-            ServerCommand::Disconnect => self.disconnect(),
-            ServerCommand::PingLoop => self.ping(true),
+            Command::Disconnect => self.disconnect(),
+            Command::PingLoop => self.ping(true),
         }
     }
 }
