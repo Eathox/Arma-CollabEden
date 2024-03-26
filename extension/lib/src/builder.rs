@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 
 use crate::{
     handlers::{client, server},
+    id::EntityIdMap,
     network::new_network_interface,
     ClientManager, OutputReceiver, OutputSender, Result, ServerManager, SharedManager,
 };
@@ -60,7 +61,7 @@ impl<H, C> ManagerBuilder<H, C> {
     /// Disable constant ping loop.
     #[inline]
     #[must_use]
-    pub fn without_ping(self) -> Self {
+    pub fn disable_ping(self) -> Self {
         Self {
             ping_enabled: false,
             ..self
@@ -108,12 +109,15 @@ impl ManagerBuilder<None, Connect> {
         let (sender, receiver) = OutputSender::new();
         let handler = client::Handler::new(controller.clone(), sender, conn, self.ping_enabled);
 
-        let manager = ClientManager::new(SharedManager {
-            _lifetime: listener.start(handler),
-            controller,
-            addr,
-            server_addr: conn.addr(),
-        });
+        let manager = ClientManager::new(
+            SharedManager {
+                _lifetime: listener.start(handler),
+                controller,
+                addr,
+                server_addr: conn.addr(),
+            },
+            EntityIdMap::new(),
+        );
         Ok((manager, receiver))
     }
 }

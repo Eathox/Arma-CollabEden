@@ -4,7 +4,7 @@ use message_io::{
     network::{Endpoint, NetEvent, Transport},
     node::{self, NodeEvent, NodeHandler, NodeListener},
 };
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{Error, Result};
 
@@ -39,7 +39,7 @@ impl std::fmt::Debug for ConnectionId {
 
 impl std::fmt::Display for ConnectionId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{}", self.id())
+        write!(f, "Conn:{}", self.id())
     }
 }
 
@@ -96,7 +96,7 @@ pub trait NetworkSerde: Serialize + DeserializeOwned {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Serialize, Deserialize)]
 enum InternalMessage<M> {
     Disconnected,
     Handler(M),
@@ -177,14 +177,14 @@ impl<H: NetworkHandler> NetworkController<H> {
         }
     }
 
-    /// Send a command to the [`NetworkHandler`].
-    pub fn command(&self, command: H::Command) {
-        self.0.signals().send(command);
-    }
-
-    /// Send a delayed command to the [`NetworkHandler`].
-    pub fn delayed_command(&self, command: H::Command, wait: Duration) {
-        self.0.signals().send_with_timer(command, wait);
+    /// Send a command with an optional delay to the [`NetworkHandler`].
+    pub fn command(&self, command: H::Command, delay: Option<Duration>) {
+        let signals = self.0.signals();
+        if let Some(delay) = delay {
+            signals.send_with_timer(command, delay);
+        } else {
+            signals.send(command);
+        }
     }
 
     /// Shut down the controller's corresponding [`NetworkListener`].

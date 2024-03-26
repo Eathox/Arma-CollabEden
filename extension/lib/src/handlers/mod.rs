@@ -1,14 +1,39 @@
 use std::time::{Duration, Instant};
 
+use serde::{Deserialize, Serialize};
+
+use crate::id::NetEntityId;
+
 pub mod client;
 pub mod server;
 
 const PING_INTERVAL: Duration = Duration::from_millis(500);
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct PingPayload(#[serde(with = "instant_serde")] Instant);
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum ArmaEvent {
+    Event {
+        name: String,
+        params: arma_rs::Value,
+    },
+    EntityEvent {
+        id: NetEntityId,
+        name: String,
+        params: arma_rs::Value,
+    },
+}
 
-impl PingPayload {
+#[derive(Debug, Serialize, Deserialize)]
+pub enum SharedMessage {
+    ArmaEvent(ArmaEvent),
+
+    Ping(PingTimer),
+    Pong(PingTimer),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PingTimer(#[serde(with = "instant_serde")] Instant);
+
+impl PingTimer {
     pub fn new() -> Self {
         Self(Instant::now())
     }

@@ -18,6 +18,9 @@ pub use logger::ArmaLogger;
 use arma_rs::{arma, Context, Extension};
 use simplelog::{ColorChoice, CombinedLogger, TermLogger, TerminalMode};
 
+/// Maximum whole number representable by f32 before skipping whole numbers
+const MAX_PRECISE_WHOLE_F32: i32 = 2_i32.pow(f32::MANTISSA_DIGITS);
+
 #[arma]
 fn init() -> Extension {
     let ext = Extension::build()

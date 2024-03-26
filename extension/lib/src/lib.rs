@@ -15,14 +15,18 @@ use crossbeam_channel::{unbounded, Receiver, Sender};
 mod builder;
 mod error;
 mod handlers;
+mod id;
 mod network;
+
+use handlers::{client, server, ArmaEvent};
+use id::EntityIdMap;
+use network::{ListenerLifetime, NetworkController, NetworkHandler};
 
 pub use builder::ManagerBuilder;
 pub use error::{Error, Result};
-use handlers::{client, server};
 pub use handlers::{client::Output as ClientOutput, server::Output as ServerOutput};
+pub use id::{LocalEntityId, NetEntityId};
 pub use network::ConnectionId;
-use network::{ListenerLifetime, NetworkController, NetworkHandler};
 
 /// Manager responsible for a networking instance, constructed with [`ManagerBuilder`].
 /// Can be configured to be either a server, client or a client hosted server.
@@ -66,7 +70,9 @@ macro_rules! impl_shared_manager {
 
             #[inline]
             fn disconnect(&self) {
-                self.shared.controller.command($module::Command::Disconnect);
+                self.shared
+                    .controller
+                    .command($module::Command::Disconnect, None);
             }
 
             #[inline]
@@ -102,13 +108,64 @@ impl ServerManager {
 #[must_use]
 pub struct ClientManager {
     shared: SharedManager<client::Handler>,
+    entity_map: EntityIdMap,
 }
 
 impl_shared_manager!(ClientManager, client);
 
 impl ClientManager {
-    const fn new(shared: SharedManager<client::Handler>) -> Self {
-        Self { shared }
+    const fn new(shared: SharedManager<client::Handler>, entity_map: EntityIdMap) -> Self {
+        Self { shared, entity_map }
+    }
+
+    /// Reserve a unused unique entity network id, the id is returned by [`ClientOutput::EntityNetId`].
+    pub fn reserve_net_id(&self) {
+        self.shared
+            .controller
+            .command(client::Command::RequestEntityNetId, None);
+    }
+
+    /// Add entity to the network mapping, requires a unique net id, see [`Self::reserve_net_id`].
+    pub fn add_entity(&mut self, net_id: NetEntityId, local_id: LocalEntityId) {
+        self.entity_map.add(net_id, local_id);
+    }
+
+    /// Remove entity from the network mapping.
+    pub fn remove_entity(&mut self, net_id: NetEntityId) {
+        self.entity_map.remove(net_id);
+    }
+
+    /// Get the network id from the local id.
+    #[must_use]
+    pub fn get_net_id(&self, local_id: LocalEntityId) -> Option<NetEntityId> {
+        self.entity_map.get_net_id(local_id)
+    }
+
+    /// Get the local id from the network id.
+    #[must_use]
+    pub fn get_local_id(&self, net_id: NetEntityId) -> Option<LocalEntityId> {
+        self.entity_map.get_local_id(net_id)
+    }
+
+    /// Broadcast an arma event over the network.
+    pub fn arma_event(&self, name: &str, data: arma_rs::Value) {
+        let event = ArmaEvent::Event {
+            name: name.to_owned(),
+            params: data,
+        };
+        let command = client::Command::ArmaEvent(event);
+        self.shared.controller.command(command, None);
+    }
+
+    /// Broadcast an arma entity event over the network.
+    pub fn arma_entity_event(&self, net_id: NetEntityId, name: &str, data: arma_rs::Value) {
+        let event = ArmaEvent::EntityEvent {
+            id: net_id,
+            name: name.to_owned(),
+            params: data,
+        };
+        let command = client::Command::ArmaEvent(event);
+        self.shared.controller.command(command, None);
     }
 }
 

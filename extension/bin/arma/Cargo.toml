@@ -9,6 +9,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 log = { workspace = true, features = ["std"] }
+coden = { path = "../../lib" }
 
 simplelog = "0.12.1"
 arma-rs = { git = "https://github.com/BrettMayson/arma-rs", features = [

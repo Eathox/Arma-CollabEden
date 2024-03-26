@@ -9,6 +9,7 @@ log = { workspace = true }
 arma-rs = { workspace = true, features = ["serde"] }
 crossbeam-channel = { workspace = true }
 
+bimap = "0.6.3"
 ciborium = "0.2.2"
 thiserror = "1.0.57"
 serde = { version = "1.0.197", features = ["derive"] }
