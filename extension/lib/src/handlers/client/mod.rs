@@ -1,4 +1,6 @@
-use super::{server::Message as ServerMessage, ArmaEvent, CommonMessage, PingTimer, PING_INTERVAL};
+use std::time::Duration;
+
+use super::{server::Message as ServerMessage, ArmaEvent, CommonMessage, PingTimer};
 use crate::{
     network::{ConnectionId, NetworkController, NetworkEvent, NetworkHandler, NetworkSerde},
     OutputSender,
@@ -28,7 +30,7 @@ pub enum Command {
     RequestEntityNetId,
     ArmaEvent(ArmaEvent),
     Disconnect,
-    PingLoop,
+    PingLoop(Duration),
 }
 
 pub struct Handler {
@@ -94,7 +96,7 @@ impl NetworkHandler for Handler {
             }
 
             Command::Disconnect => self.disconnect(),
-            Command::PingLoop => self.ping(true),
+            Command::PingLoop(interval) => self.ping_loop(interval),
         }
     }
 }
@@ -104,17 +106,19 @@ impl Handler {
         network: NetworkController<Self>,
         output: OutputSender<Output>,
         server: ConnectionId,
-        ping_loop: bool,
+        ping: Option<Duration>,
     ) -> Self {
-        if ping_loop {
-            network.command(Command::PingLoop, Some(PING_INTERVAL));
-        };
-
-        Self {
+        let ret = Self {
             network,
             output,
             server,
+        };
+
+        if let Some(ping) = ping {
+            ret.ping_loop(ping);
         }
+
+        ret
     }
 
     fn disconnect(&self) {
@@ -122,12 +126,11 @@ impl Handler {
         self.network.stop();
     }
 
-    fn ping(&self, repeat: bool) {
+    fn ping_loop(&self, interval: Duration) {
         let message = CommonMessage::Ping(PingTimer::new());
         self.network.send(self.server, message.into());
 
-        if repeat {
-            self.network.command(Command::PingLoop, Some(PING_INTERVAL));
-        }
+        self.network
+            .command(Command::PingLoop(interval), Some(interval));
     }
 }

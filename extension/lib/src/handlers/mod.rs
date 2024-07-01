@@ -8,8 +8,6 @@ pub mod server;
 
 pub use id::NetEntityId;
 
-const PING_INTERVAL: Duration = Duration::from_millis(500);
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum ArmaEvent {
     Event {

@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, time::Duration};
 
 use crate::{
     handlers::{client, server},
@@ -16,7 +16,7 @@ pub struct None;
 pub struct ManagerBuilder<H, C> {
     host: H,
     connect: C,
-    ping_enabled: bool,
+    ping: Option<Duration>,
 }
 
 impl Default for ManagerBuilder<None, None> {
@@ -27,7 +27,7 @@ impl Default for ManagerBuilder<None, None> {
         Self {
             host: None,
             connect: None,
-            ping_enabled: true,
+            ping: Some(Duration::from_millis(500)),
         }
     }
 }
@@ -40,7 +40,7 @@ impl ManagerBuilder<None, None> {
         ManagerBuilder {
             host: None,
             connect: Connect(remote),
-            ping_enabled: self.ping_enabled,
+            ping: self.ping,
         }
     }
 
@@ -51,19 +51,19 @@ impl ManagerBuilder<None, None> {
         ManagerBuilder {
             host: Host(local),
             connect: None,
-            ping_enabled: self.ping_enabled,
+            ping: self.ping,
         }
     }
 }
 
 // Any
 impl<H, C> ManagerBuilder<H, C> {
-    /// Disable constant ping loop.
+    /// Change the ping interval. Set to `None` to disable the ping loop. Defaults to 500ms.
     #[inline]
     #[must_use]
-    pub fn disable_ping(self) -> Self {
+    pub fn with_ping(self, interval: Option<Duration>) -> Self {
         Self {
-            ping_enabled: false,
+            ping: interval,
             ..self
         }
     }
@@ -82,7 +82,7 @@ impl ManagerBuilder<Host, None> {
         let server_addr = controller.listen(self.host.0)?;
 
         let (sender, receiver) = OutputSender::new();
-        let handler = server::Handler::new(controller.clone(), sender, self.ping_enabled);
+        let handler = server::Handler::new(controller.clone(), sender, self.ping);
 
         let manager = ServerManager::new(CommonManager {
             _lifetime: listener.start(handler),
@@ -107,7 +107,7 @@ impl ManagerBuilder<None, Connect> {
         let (conn, addr) = controller.connect(self.connect.0)?;
 
         let (sender, receiver) = OutputSender::new();
-        let handler = client::Handler::new(controller.clone(), sender, conn, self.ping_enabled);
+        let handler = client::Handler::new(controller.clone(), sender, conn, self.ping);
 
         let manager = ClientManager::new(CommonManager {
             _lifetime: listener.start(handler),
