@@ -8,11 +8,11 @@ use crossbeam_channel::Receiver;
 use pretty_assertions::{assert_eq, assert_matches};
 
 use coden::{
-    ClientManager, ClientOutput, InstanceManager, LocalEntityId, ManagerBuilder, NetEntityId,
-    ServerManager, ServerOutput,
+    ClientManager, ClientOutput, InstanceManager, ManagerBuilder, NetEntityId, ServerManager,
+    ServerOutput,
 };
 
-const LOCAL_ADDR: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
+const LOCAL_ADDR: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 const TIMEOUT: Duration = Duration::from_millis(100);
 
 #[allow(clippy::type_complexity)]
@@ -22,14 +22,14 @@ fn setup_test_network(
     (ServerManager, Receiver<ServerOutput>),
     Vec<(ClientManager, Receiver<ClientOutput>)>,
 ) {
-    let (server, server_out) = ManagerBuilder::new()
+    let (server, server_out) = ManagerBuilder::default()
         .host_on(LOCAL_ADDR)
         .disable_ping()
         .startup()
         .unwrap();
 
     let mut clients = Vec::with_capacity(client_count);
-    let client_builder = ManagerBuilder::new()
+    let client_builder = ManagerBuilder::default()
         .connect_to(server.server_addr())
         .disable_ping();
 
@@ -69,7 +69,7 @@ fn reserve_net_id() {
         client.stop(); // Speeds up the test
     }
 
-    assert_eq!(ids.last(), Some(&NetEntityId::new(CLIENT_COUNT - 1)));
+    assert_eq!(ids.last(), Some(&NetEntityId::test(CLIENT_COUNT - 1)));
 }
 
 #[test]
@@ -103,41 +103,30 @@ fn arma_event() {
 
 #[test]
 fn arma_entity_event() {
-    let ((_server, server_out), mut clients) = setup_test_network(2);
-    let (mut client_a, client_a_out) = clients.pop().unwrap();
-    let (mut client_b, client_b_out) = clients.pop().unwrap();
+    let ((_server, server_out), mut clients) = setup_test_network(3);
+    let (client_a, client_a_out) = clients.pop().unwrap();
+    let (_client_b, client_b_out) = clients.pop().unwrap();
+    let (_client_c, client_c_out) = clients.pop().unwrap();
 
     client_a.reserve_net_id();
     let ClientOutput::EntityNetId(net_id) = recv_output(&client_a_out) else {
         panic!("Event should be an EntityNetId");
     };
 
-    let client_b_local_id = LocalEntityId::new(1);
-    assert_eq!(client_a.get_net_id(client_b_local_id), None);
-
-    client_a.add_entity(net_id, client_b_local_id);
-    assert_eq!(client_a.get_net_id(client_b_local_id), Some(net_id));
-
     client_a.arma_entity_event(net_id, "created", arma_rs::Value::Null);
-    assert_eq!(
-        recv_output(&client_b_out),
-        ClientOutput::ArmaEntityEvent {
-            id: net_id,
-            name: "created".to_string(),
-            params: arma_rs::Value::Null
-        }
-    );
-
-    let client_a_local_id = LocalEntityId::new(99);
-    assert_eq!(client_b.get_net_id(client_a_local_id), None);
-
-    client_b.add_entity(net_id, client_a_local_id);
-    assert_eq!(client_b.get_net_id(client_a_local_id), Some(net_id));
-
-    assert_eq!(client_a.get_local_id(net_id), Some(client_b_local_id));
-    assert_eq!(client_b.get_local_id(net_id), Some(client_a_local_id));
+    for out in [&client_b_out, &client_c_out] {
+        assert_eq!(
+            recv_output(out),
+            ClientOutput::ArmaEntityEvent {
+                id: net_id,
+                name: "created".to_string(),
+                params: arma_rs::Value::Null
+            }
+        );
+    }
 
     assert_eq!(server_out.len(), 0);
     assert_eq!(client_a_out.len(), 0);
     assert_eq!(client_b_out.len(), 0);
+    assert_eq!(client_c_out.len(), 0);
 }

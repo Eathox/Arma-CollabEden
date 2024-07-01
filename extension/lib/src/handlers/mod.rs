@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
-use crate::id::NetEntityId;
+use crate::NetEntityId;
 
 pub mod client;
 pub mod server;
@@ -23,7 +23,7 @@ pub enum ArmaEvent {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum SharedMessage {
+pub enum CommonMessage {
     ArmaEvent(ArmaEvent),
 
     Ping(PingTimer),

@@ -2,9 +2,8 @@ use std::net::SocketAddr;
 
 use crate::{
     handlers::{client, server},
-    id::EntityIdMap,
     network::new_network_interface,
-    ClientManager, OutputReceiver, OutputSender, Result, ServerManager, SharedManager,
+    ClientManager, CommonManager, OutputReceiver, OutputSender, Result, ServerManager,
 };
 
 pub struct Connect(SocketAddr);
@@ -20,19 +19,20 @@ pub struct ManagerBuilder<H, C> {
     ping_enabled: bool,
 }
 
-impl ManagerBuilder<None, None> {
+impl Default for ManagerBuilder<None, None> {
     /// Start building a new network manager.
-    #[allow(private_interfaces)]
     #[inline]
     #[must_use]
-    pub const fn new() -> Self {
+    fn default() -> Self {
         Self {
             host: None,
             connect: None,
             ping_enabled: true,
         }
     }
+}
 
+impl ManagerBuilder<None, None> {
     /// Configure to be a client connecting to the given address.
     #[inline]
     #[must_use]
@@ -84,7 +84,7 @@ impl ManagerBuilder<Host, None> {
         let (sender, receiver) = OutputSender::new();
         let handler = server::Handler::new(controller.clone(), sender, self.ping_enabled);
 
-        let manager = ServerManager::new(SharedManager {
+        let manager = ServerManager::new(CommonManager {
             _lifetime: listener.start(handler),
             controller,
             addr: server_addr,
@@ -109,15 +109,12 @@ impl ManagerBuilder<None, Connect> {
         let (sender, receiver) = OutputSender::new();
         let handler = client::Handler::new(controller.clone(), sender, conn, self.ping_enabled);
 
-        let manager = ClientManager::new(
-            SharedManager {
-                _lifetime: listener.start(handler),
-                controller,
-                addr,
-                server_addr: conn.addr(),
-            },
-            EntityIdMap::new(),
-        );
+        let manager = ClientManager::new(CommonManager {
+            _lifetime: listener.start(handler),
+            controller,
+            addr,
+            server_addr: conn.addr(),
+        });
         Ok((manager, receiver))
     }
 }

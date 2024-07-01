@@ -1,68 +1,25 @@
-use std::time::Duration;
-
-use super::{server::Message as ServerMessage, ArmaEvent, PingTimer, SharedMessage, PING_INTERVAL};
+use super::{server::Message as ServerMessage, ArmaEvent, CommonMessage, PingTimer, PING_INTERVAL};
 use crate::{
-    id::NetEntityId,
     network::{ConnectionId, NetworkController, NetworkEvent, NetworkHandler, NetworkSerde},
     OutputSender,
 };
 
-/// Client output events.
-#[derive(Debug, PartialEq)]
-pub enum Output {
-    /// Unique entity net id reserved by this client.
-    EntityNetId(NetEntityId),
+mod output;
 
-    /// Arma event.
-    ArmaEvent {
-        /// Event name.
-        name: String,
-        /// Event params.
-        params: arma_rs::Value,
-    },
-    /// Arma entity event.
-    ArmaEntityEvent {
-        /// Entity net id.
-        id: NetEntityId,
-        /// Event name.
-        name: String,
-        /// Event params.
-        params: arma_rs::Value,
-    },
-
-    /// Attempted to connect to the server, `true` if connected.
-    ServerConnected(bool),
-    /// Server disconnected.
-    ServerDisconnected,
-    /// Lost connection to the server.
-    LostConnection,
-    /// Ping to the server.
-    Ping(Duration),
-}
-
-impl From<ArmaEvent> for Output {
-    fn from(event: ArmaEvent) -> Self {
-        match event {
-            ArmaEvent::Event { name, params } => Self::ArmaEvent { name, params },
-            ArmaEvent::EntityEvent { id, name, params } => {
-                Self::ArmaEntityEvent { id, name, params }
-            }
-        }
-    }
-}
+pub use output::Output;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum Message {
     RequestEntityNetId,
 
-    Shared(SharedMessage),
+    Common(CommonMessage),
 }
 
 impl NetworkSerde for Message {}
 
-impl From<SharedMessage> for Message {
-    fn from(message: SharedMessage) -> Self {
-        Self::Shared(message)
+impl From<CommonMessage> for Message {
+    fn from(message: CommonMessage) -> Self {
+        Self::Common(message)
     }
 }
 
@@ -111,15 +68,15 @@ impl NetworkHandler for Handler {
                 self.output.send(Output::EntityNetId(id));
             }
 
-            ServerMessage::Shared(message) => match message {
-                SharedMessage::ArmaEvent(event) => {
+            ServerMessage::Common(message) => match message {
+                CommonMessage::ArmaEvent(event) => {
                     self.output.send(event.into());
                 }
 
-                SharedMessage::Ping(timer) => {
-                    self.network.send(conn, SharedMessage::Pong(timer).into());
+                CommonMessage::Ping(timer) => {
+                    self.network.send(conn, CommonMessage::Pong(timer).into());
                 }
-                SharedMessage::Pong(timer) => {
+                CommonMessage::Pong(timer) => {
                     self.output.send(Output::Ping(timer.elapsed()));
                 }
             },
@@ -132,7 +89,7 @@ impl NetworkHandler for Handler {
                 self.network.send(self.server, Message::RequestEntityNetId);
             }
             Command::ArmaEvent(event) => {
-                let message = SharedMessage::ArmaEvent(event);
+                let message = CommonMessage::ArmaEvent(event);
                 self.network.send(self.server, message.into());
             }
 
@@ -166,7 +123,7 @@ impl Handler {
     }
 
     fn ping(&self, repeat: bool) {
-        let message = SharedMessage::Ping(PingTimer::new());
+        let message = CommonMessage::Ping(PingTimer::new());
         self.network.send(self.server, message.into());
 
         if repeat {

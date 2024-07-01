@@ -150,7 +150,7 @@ impl<H: NetworkHandler> NetworkController<H> {
         Ok((ConnectionId(conn), new_addr))
     }
 
-    /// Remove the given connection. This does not emit a [`NetworkEvent::ConnectionLost`] to the event loop.
+    /// Remove the given connection.
     ///
     /// Returns `false` if the connection is already removed.
     pub fn remove(&self, conn: ConnectionId) -> bool {

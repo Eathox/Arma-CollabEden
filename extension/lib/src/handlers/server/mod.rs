@@ -1,37 +1,27 @@
-use std::time::Duration;
-
-use super::{client::Message as ClientMessage, PingTimer, SharedMessage, PING_INTERVAL};
+use super::{client::Message as ClientMessage, CommonMessage, PingTimer, PING_INTERVAL};
 use crate::{
-    id::{NetEntityId, NetIdGenerator},
     network::{ConnectionId, NetworkController, NetworkEvent, NetworkHandler, NetworkSerde},
-    OutputSender,
+    NetEntityId, OutputSender,
 };
 
-/// Server output events.
-#[derive(Debug, PartialEq, Eq)]
-pub enum Output {
-    /// New client connected.
-    ClientConnected(ConnectionId),
-    /// Client disconnected.
-    ClientDisconnected(ConnectionId),
-    /// Lost connection to the client.
-    LostConnection(ConnectionId),
-    /// Ping to the client.
-    Ping(ConnectionId, Duration),
-}
+mod id;
+mod output;
+
+use id::NetIdGenerator;
+pub use output::Output;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum Message {
     EntityNetId(NetEntityId),
 
-    Shared(SharedMessage),
+    Common(CommonMessage),
 }
 
 impl NetworkSerde for Message {}
 
-impl From<SharedMessage> for Message {
-    fn from(message: SharedMessage) -> Self {
-        Self::Shared(message)
+impl From<CommonMessage> for Message {
+    fn from(message: CommonMessage) -> Self {
+        Self::Common(message)
     }
 }
 
@@ -80,15 +70,15 @@ impl NetworkHandler for Handler {
                 self.network.send(conn, Message::EntityNetId(net_id));
             }
 
-            ClientMessage::Shared(message) => match message {
-                SharedMessage::ArmaEvent(event) => {
-                    self.propagate(conn, || SharedMessage::ArmaEvent(event.clone()).into());
+            ClientMessage::Common(message) => match message {
+                CommonMessage::ArmaEvent(event) => {
+                    self.propagate(conn, || CommonMessage::ArmaEvent(event.clone()).into());
                 }
 
-                SharedMessage::Ping(timer) => {
-                    self.network.send(conn, SharedMessage::Pong(timer).into());
+                CommonMessage::Ping(timer) => {
+                    self.network.send(conn, CommonMessage::Pong(timer).into());
                 }
-                SharedMessage::Pong(timer) => {
+                CommonMessage::Pong(timer) => {
                     self.output.send(Output::Ping(conn, timer.elapsed()));
                 }
             },
@@ -138,7 +128,7 @@ impl Handler {
 
     fn ping(&self, repeat: bool) {
         for client in &self.clients {
-            let message = SharedMessage::Ping(PingTimer::new());
+            let message = CommonMessage::Ping(PingTimer::new());
             self.network.send(*client, message.into());
         }
 
