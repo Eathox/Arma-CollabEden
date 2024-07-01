@@ -69,7 +69,7 @@ fn reserve_net_id() {
         client.stop(); // Speeds up the test
     }
 
-    assert_eq!(ids.last(), Some(&NetEntityId::test(CLIENT_COUNT - 1)));
+    assert_eq!(ids.last().map(|&id| id.id()), Some(CLIENT_COUNT - 1));
 }
 
 #[test]
