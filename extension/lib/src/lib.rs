@@ -22,40 +22,8 @@ use network::{ListenerLifetime, NetworkController, NetworkHandler};
 
 pub use builder::ManagerBuilder;
 pub use error::{Error, Result};
-pub use handlers::{client::Output as ClientOutput, server::Output as ServerOutput};
+pub use handlers::{client::Output as ClientOutput, server::Output as ServerOutput, NetEntityId};
 pub use network::ConnectionId;
-
-/// Unique network entity id.
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-    arma_rs::IntoArma,
-    arma_rs::FromArma,
-)]
-pub struct NetEntityId(u32);
-
-impl NetEntityId {
-    /// Unique ID of the network entity.
-    #[inline]
-    #[must_use]
-    pub const fn id(&self) -> u32 {
-        self.0
-    }
-}
-
-impl std::fmt::Display for NetEntityId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Net:{}", self.id())
-    }
-}
 
 /// Manager responsible for a networking instance, constructed with [`ManagerBuilder`].
 /// Can be configured to be either a server, client or a client hosted server.

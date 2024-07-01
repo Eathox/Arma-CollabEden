@@ -1,13 +1,13 @@
-use super::{client::Message as ClientMessage, CommonMessage, PingTimer, PING_INTERVAL};
+use super::{
+    client::Message as ClientMessage, id::NetEntityIdGen, CommonMessage, PingTimer, PING_INTERVAL,
+};
 use crate::{
     network::{ConnectionId, NetworkController, NetworkEvent, NetworkHandler, NetworkSerde},
     NetEntityId, OutputSender,
 };
 
-mod id;
 mod output;
 
-use id::NetIdGenerator;
 pub use output::Output;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -35,7 +35,7 @@ pub struct Handler {
     network: NetworkController<Self>,
     output: OutputSender<Output>,
     clients: Vec<ConnectionId>,
-    net_id: NetIdGenerator,
+    net_id: NetEntityIdGen,
 }
 
 impl NetworkHandler for Handler {
@@ -107,7 +107,7 @@ impl Handler {
             network,
             output,
             clients: vec![],
-            net_id: NetIdGenerator::new(),
+            net_id: NetEntityIdGen::new(),
         }
     }
 

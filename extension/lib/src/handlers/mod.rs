@@ -2,10 +2,11 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
-use crate::NetEntityId;
-
 pub mod client;
+mod id;
 pub mod server;
+
+pub use id::NetEntityId;
 
 const PING_INTERVAL: Duration = Duration::from_millis(500);
 
