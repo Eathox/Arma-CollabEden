@@ -30,7 +30,6 @@ impl std::fmt::Display for NetEntityId {
     }
 }
 
-/// Helper struct for generating unique network entity ids.
 pub struct NetEntityIdGen(u32);
 
 impl NetEntityIdGen {

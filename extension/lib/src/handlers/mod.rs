@@ -44,7 +44,7 @@ impl PingTimer {
     }
 }
 
-/// Serde impls for [`std::time::Instant`] to be used with `#[serde(with = "instant_serde")]`. Implemented by converting to and from [`std::time::Duration`].
+/// Serde impls for [`std::time::Instant`] to be used with `#[serde(with = "instant_serde")]`.
 mod instant_serde {
     use std::time::{Duration, Instant};
 

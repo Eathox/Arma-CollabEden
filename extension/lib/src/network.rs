@@ -65,32 +65,19 @@ pub trait NetworkHandler: Sized + Send + 'static {
     /// Command thats send to the handler from outside the listener loop using [`NetworkController::command`].
     type Command: Send + 'static;
 
-    /// Handle a network event.
     fn handle_event(&mut self, event: NetworkEvent);
-
-    /// Handle a network message.
     fn handle_message(&mut self, conn: ConnectionId, message: Self::RecvMessage);
-
-    /// Handle a command.
     fn handle_command(&mut self, command: Self::Command);
 }
 
 /// Type that can be sent over network interface.
 pub trait NetworkSerde: Serialize + DeserializeOwned {
-    /// Serialize into a byte vector for sending over a network interface.
-    ///
-    /// # Errors
-    /// An error is returned if the instance failed to serialize.
     fn to_net(&self) -> Result<Vec<u8>, ciborium::ser::Error<std::io::Error>> {
         let mut buffer = Vec::new();
         ciborium::into_writer(self, &mut buffer)?;
         Ok(buffer)
     }
 
-    /// Deserialize from a byte slice send over a network interface.
-    ///
-    /// # Errors
-    /// An error is returned if the instance failed to deserialize.
     fn from_net(bytes: &[u8]) -> Result<Self, ciborium::de::Error<std::io::Error>> {
         ciborium::from_reader(bytes)
     }
@@ -105,12 +92,6 @@ enum InternalMessage<M> {
 impl NetworkSerde for () {}
 impl<M: NetworkSerde> NetworkSerde for InternalMessage<M> {}
 
-/// Create a new network interface returning its [`NetworkController`] and [`NetworkListener`].
-pub fn new_network_interface<H: NetworkHandler>() -> (NetworkController<H>, NetworkListener<H>) {
-    let (node, listener) = node::split::<H::Command>();
-    (NetworkController(node), NetworkListener(listener))
-}
-
 /// Controller used to connect, remove and send messages over the network, can safely be shared between threads.
 pub struct NetworkController<H: NetworkHandler>(NodeHandler<H::Command>);
 
@@ -121,7 +102,12 @@ impl<H: NetworkHandler> Clone for NetworkController<H> {
 }
 
 impl<H: NetworkHandler> NetworkController<H> {
-    /// Listen on the given address. Returns the actual address listening on, since port can be passed `0` for automatic selection.
+    pub fn new() -> (Self, NetworkListener<H>) {
+        let (node, listener) = node::split::<H::Command>();
+        (Self(node), NetworkListener(listener))
+    }
+
+    /// Listen on the given address. Returns the actual address listening on, port can be passed `0` for automatic selection.
     ///
     /// # Errors
     /// Returns an error if unable to listen on the given address.
@@ -146,11 +132,11 @@ impl<H: NetworkHandler> NetworkController<H> {
             .network()
             .connect(Transport::FramedTcp, addr)
             .map_err(|err| Error::ConnectAttempt(addr, err))?;
-        let new_addr = SocketAddr::new(addr.ip(), new_addr.port()); // Fix bug where sometimes 0.0.0.0 is returned with automatic port selection
+        let new_addr = SocketAddr::new(addr.ip(), new_addr.port()); // Sometimes automatic port selection has an ip of 0.0.0.0
         Ok((ConnectionId(conn), new_addr))
     }
 
-    /// Remove the given connection.
+    /// Remove the given connection. Does not emit a [`NetworkEvent::ConnectionLost`] to the local event loop.
     ///
     /// Returns `false` if the connection is already removed.
     pub fn remove(&self, conn: ConnectionId) -> bool {
@@ -163,7 +149,6 @@ impl<H: NetworkHandler> NetworkController<H> {
         }
     }
 
-    /// Send a message to the given connection.
     pub fn send(&self, conn: ConnectionId, message: H::SendMessage) {
         self.send_internal(conn, &InternalMessage::Handler(message));
     }
@@ -177,7 +162,6 @@ impl<H: NetworkHandler> NetworkController<H> {
         }
     }
 
-    /// Send a command with an optional delay to the [`NetworkHandler`].
     pub fn command(&self, command: H::Command, delay: Option<Duration>) {
         let signals = self.0.signals();
         if let Some(delay) = delay {
@@ -194,10 +178,8 @@ impl<H: NetworkHandler> NetworkController<H> {
     }
 }
 
-/// Listener that queues and serves [`NetworkEvent`], [`NetworkHandler::Command`] and [`NetworkHandler::Message`] to a [`NetworkHandler`].
+/// Listener that queues and serves [`NetworkEvent`], [`NetworkHandler::Command`] and [`NetworkHandler::RecvMessage`] to a [`NetworkHandler`].
 pub struct NetworkListener<H: NetworkHandler>(NodeListener<H::Command>);
-
-/// Listener loop lifetime.
 pub type ListenerLifetime = message_io::node::NodeTask;
 
 impl<H: NetworkHandler> NetworkListener<H> {

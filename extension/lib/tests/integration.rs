@@ -65,7 +65,7 @@ fn reserve_net_id() {
 
     let mut ids = BTreeSet::new();
     for (client, out) in clients.iter() {
-        assert_matches!(recv_output(out), ClientOutput::EntityNetId(id) if ids.insert(id));
+        assert_matches!(recv_output(out), ClientOutput::ReservedNetId(id) if ids.insert(id));
         client.stop(); // Speeds up the test
     }
 
@@ -109,7 +109,7 @@ fn arma_entity_event() {
     let (_client_c, client_c_out) = clients.pop().unwrap();
 
     client_a.reserve_net_id();
-    let ClientOutput::EntityNetId(net_id) = recv_output(&client_a_out) else {
+    let ClientOutput::ReservedNetId(net_id) = recv_output(&client_a_out) else {
         panic!("Event should be an EntityNetId");
     };
 

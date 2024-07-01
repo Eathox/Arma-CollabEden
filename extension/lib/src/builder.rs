@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 
 use crate::{
     handlers::{client, server},
-    network::new_network_interface,
+    network::NetworkController,
     ClientManager, CommonManager, OutputReceiver, OutputSender, Result, ServerManager,
 };
 
@@ -78,7 +78,7 @@ impl ManagerBuilder<Host, None> {
     /// Returns an error if the address is unable to be used to listen on.
     #[inline]
     pub fn startup(&self) -> Result<(ServerManager, OutputReceiver<server::Output>)> {
-        let (controller, listener) = new_network_interface();
+        let (controller, listener) = NetworkController::new();
         let server_addr = controller.listen(self.host.0)?;
 
         let (sender, receiver) = OutputSender::new();
@@ -103,7 +103,7 @@ impl ManagerBuilder<None, Connect> {
     /// Returns an error if the address is unable to be used to connect to.
     #[inline]
     pub fn startup(&self) -> Result<(ClientManager, OutputReceiver<client::Output>)> {
-        let (controller, listener) = new_network_interface();
+        let (controller, listener) = NetworkController::new();
         let (conn, addr) = controller.connect(self.connect.0)?;
 
         let (sender, receiver) = OutputSender::new();

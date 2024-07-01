@@ -10,7 +10,7 @@ pub use output::Output;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum Message {
-    RequestEntityNetId,
+    ReserveEntityNetId,
 
     Common(CommonMessage),
 }
@@ -64,8 +64,8 @@ impl NetworkHandler for Handler {
 
     fn handle_message(&mut self, conn: ConnectionId, message: Self::RecvMessage) {
         match message {
-            ServerMessage::EntityNetId(id) => {
-                self.output.send(Output::EntityNetId(id));
+            ServerMessage::ReservedNetId(id) => {
+                self.output.send(Output::ReservedNetId(id));
             }
 
             ServerMessage::Common(message) => match message {
@@ -86,7 +86,7 @@ impl NetworkHandler for Handler {
     fn handle_command(&mut self, command: Self::Command) {
         match command {
             Command::RequestEntityNetId => {
-                self.network.send(self.server, Message::RequestEntityNetId);
+                self.network.send(self.server, Message::ReserveEntityNetId);
             }
             Command::ArmaEvent(event) => {
                 let message = CommonMessage::ArmaEvent(event);

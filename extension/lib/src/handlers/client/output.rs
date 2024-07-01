@@ -7,7 +7,7 @@ use crate::NetEntityId;
 #[derive(Debug, PartialEq)]
 pub enum Output {
     /// Unique entity net id reserved by this client.
-    EntityNetId(NetEntityId),
+    ReservedNetId(NetEntityId),
 
     /// Arma event.
     ArmaEvent {
