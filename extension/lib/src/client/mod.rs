@@ -1,13 +1,16 @@
 use std::time::Duration;
 
-use super::{server::Message as ServerMessage, ArmaEvent, CommonMessage, PingTimer};
+use super::server::Message as ServerMessage;
 use crate::{
-    network::{ConnectionId, NetworkController, NetworkEvent, NetworkHandler, NetworkSerde},
-    OutputSender,
+    networking::NetworkSerde,
+    networking::{ConnectionId, NetworkController, NetworkEvent, NetworkHandler},
+    ArmaEvent, CommonMessage, OutputSender, PingTimer,
 };
 
+mod manager;
 mod output;
 
+pub use manager::{Command, Manager};
 pub use output::Output;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -23,14 +26,6 @@ impl From<CommonMessage> for Message {
     fn from(message: CommonMessage) -> Self {
         Self::Common(message)
     }
-}
-
-#[derive(Debug)]
-pub enum Command {
-    RequestEntityNetId,
-    ArmaEvent(ArmaEvent),
-    Disconnect,
-    PingLoop(Duration),
 }
 
 pub struct Handler {
@@ -52,6 +47,7 @@ impl NetworkHandler for Handler {
                     self.network.stop();
                 }
             }
+
             NetworkEvent::ConnectionLost(_, disconnected) => {
                 self.output.send(if disconnected {
                     Output::ServerDisconnected
@@ -60,7 +56,10 @@ impl NetworkHandler for Handler {
                 });
                 self.network.stop();
             }
-            NetworkEvent::NewConnection(_) => unreachable!("Clients cant accept new connections"),
+
+            NetworkEvent::NewConnection(_) => {
+                unreachable!("Clients cant accept new connections");
+            }
         }
     }
 
@@ -90,7 +89,7 @@ impl NetworkHandler for Handler {
             Command::RequestEntityNetId => {
                 self.network.send(self.server, Message::ReserveEntityNetId);
             }
-            Command::ArmaEvent(event) => {
+            Command::SendArmaEvent(event) => {
                 let message = CommonMessage::ArmaEvent(event);
                 self.network.send(self.server, message.into());
             }

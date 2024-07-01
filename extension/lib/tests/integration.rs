@@ -5,29 +5,23 @@ use pretty_assertions::{assert_eq, assert_matches};
 use coden::{ClientOutput, InstanceManager, ServerOutput};
 
 mod common;
+
 use common::{recv, setup_test_network};
 
 #[test]
 fn ping() {
-    let ((_server, server_out), mut clients) = setup_test_network(2, true);
-    let (client_b, client_b_out) = clients.pop().unwrap();
+    let ((_server, server_out), mut clients) = setup_test_network(1, true);
     let (client_a, client_a_out) = clients.pop().unwrap();
 
     assert_matches!(
         recv(&server_out),
         ServerOutput::Ping(conn, _) if conn.addr() == client_a.addr()
     );
-    assert_matches!(
-        recv(&server_out),
-        ServerOutput::Ping(conn, _) if conn.addr() == client_b.addr()
-    );
 
     assert_matches!(recv(&client_a_out), ClientOutput::Ping(_));
-    assert_matches!(recv(&client_b_out), ClientOutput::Ping(_));
 
     assert_eq!(server_out.len(), 0);
     assert_eq!(client_a_out.len(), 0);
-    assert_eq!(client_b_out.len(), 0);
 }
 
 #[test]

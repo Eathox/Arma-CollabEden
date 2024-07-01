@@ -1,13 +1,17 @@
 use std::time::Duration;
 
-use super::{client::Message as ClientMessage, id::NetEntityIdGen, CommonMessage, PingTimer};
+use super::client::Message as ClientMessage;
 use crate::{
-    network::{ConnectionId, NetworkController, NetworkEvent, NetworkHandler, NetworkSerde},
-    NetEntityId, OutputSender,
+    entity_id::NetEntityIdGen,
+    networking::NetworkSerde,
+    networking::{ConnectionId, NetworkController, NetworkEvent, NetworkHandler},
+    CommonMessage, NetEntityId, OutputSender, PingTimer,
 };
 
+mod manager;
 mod output;
 
+pub use manager::{Command, Manager};
 pub use output::Output;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -23,12 +27,6 @@ impl From<CommonMessage> for Message {
     fn from(message: CommonMessage) -> Self {
         Self::Common(message)
     }
-}
-
-#[derive(Debug)]
-pub enum Command {
-    Disconnect,
-    PingLoop(Duration),
 }
 
 pub struct Handler {
@@ -49,6 +47,7 @@ impl NetworkHandler for Handler {
                 self.output.send(Output::ClientConnected(conn));
                 self.clients.push(conn);
             }
+
             NetworkEvent::ConnectionLost(conn, disconnected) => {
                 self.output.send(if disconnected {
                     Output::ClientDisconnected(conn)
@@ -57,6 +56,7 @@ impl NetworkHandler for Handler {
                 });
                 self.clients.retain(|c| c != &conn);
             }
+
             NetworkEvent::ConnectionAttempt(_, _) => {
                 unreachable!("Servers cant attempt to connect")
             }

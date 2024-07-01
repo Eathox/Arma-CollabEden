@@ -8,22 +8,29 @@
 #[macro_use]
 extern crate log;
 
-use std::net::SocketAddr;
+use std::{
+    net::SocketAddr,
+    time::{Duration, Instant},
+};
 
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use serde::{Deserialize, Serialize};
 
 mod builder;
+mod client;
+mod entity_id;
 mod error;
-mod handlers;
-mod network;
-
-use handlers::{client, server, ArmaEvent};
-use network::{ListenerLifetime, NetworkController, NetworkHandler};
+mod networking;
+mod output;
+mod server;
 
 pub use builder::ManagerBuilder;
+pub use client::{Manager as ClientManager, Output as ClientOutput};
+pub use entity_id::NetEntityId;
 pub use error::{Error, Result};
-pub use handlers::{client::Output as ClientOutput, server::Output as ServerOutput, NetEntityId};
-pub use network::ConnectionId;
+pub use networking::ConnectionId;
+pub use output::OutputReceiver;
+use output::OutputSender;
+pub use server::{Manager as ServerManager, Output as ServerOutput};
 
 /// Manager responsible for a networking instance, constructed with [`ManagerBuilder`].
 /// Can be configured to be either a server, client or a client hosted server.
@@ -43,138 +50,60 @@ pub trait InstanceManager {
     fn stop(&self);
 }
 
-struct CommonManager<H: NetworkHandler> {
-    _lifetime: ListenerLifetime,
-    controller: NetworkController<H>,
-    addr: SocketAddr,
-    server_addr: SocketAddr,
+#[derive(Debug, Clone, Deserialize, Serialize)]
+enum ArmaEvent {
+    Event {
+        name: String,
+        params: arma_rs::Value,
+    },
+    EntityEvent {
+        id: NetEntityId,
+        name: String,
+        params: arma_rs::Value,
+    },
 }
 
-macro_rules! impl_common_manager {
-    ($manager:ident, $module:ident) => {
-        impl InstanceManager for $manager {
-            #[inline]
-            #[must_use]
-            fn addr(&self) -> SocketAddr {
-                self.common.addr
-            }
+#[derive(Debug, Serialize, Deserialize)]
+enum CommonMessage {
+    ArmaEvent(ArmaEvent),
 
-            #[inline]
-            #[must_use]
-            fn server_addr(&self) -> SocketAddr {
-                self.common.server_addr
-            }
-
-            #[inline]
-            fn disconnect(&self) {
-                self.common
-                    .controller
-                    .command($module::Command::Disconnect, None);
-            }
-
-            #[inline]
-            fn stop(&self) {
-                self.common.controller.stop();
-            }
-        }
-
-        impl Drop for $manager {
-            fn drop(&mut self) {
-                self.stop();
-            }
-        }
-    };
+    Ping(PingTimer),
+    Pong(PingTimer),
 }
 
-/// Dedicated server network manager.
-#[must_use]
-pub struct ServerManager {
-    common: CommonManager<server::Handler>,
-}
+#[derive(Debug, Serialize, Deserialize)]
+struct PingTimer(#[serde(with = "instant_serde")] Instant);
 
-impl_common_manager!(ServerManager, server);
+impl PingTimer {
+    pub fn new() -> Self {
+        Self(Instant::now())
+    }
 
-impl ServerManager {
-    const fn new(common: CommonManager<server::Handler>) -> Self {
-        Self { common }
+    pub fn elapsed(&self) -> Duration {
+        self.0.elapsed()
     }
 }
 
-/// Client network manager.
-#[must_use]
-pub struct ClientManager {
-    common: CommonManager<client::Handler>,
-}
+/// Serde impls for [`std::time::Instant`] to be used with `#[serde(with = "instant_serde")]`.
+mod instant_serde {
+    use std::time::{Duration, Instant};
 
-impl_common_manager!(ClientManager, client);
+    use serde::{de::Error, Deserialize, Serialize};
 
-impl ClientManager {
-    const fn new(common: CommonManager<client::Handler>) -> Self {
-        Self { common }
+    pub fn serialize<S: serde::Serializer>(
+        instant: &Instant,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        let duration = instant.elapsed();
+        duration.serialize(serializer)
     }
 
-    /// Reserve a unused unique entity network id, the id is returned by [`ClientOutput::EntityNetId`].
-    pub fn reserve_net_id(&self) {
-        self.common
-            .controller
-            .command(client::Command::RequestEntityNetId, None);
-    }
-
-    /// Broadcast an arma event over the network.
-    pub fn arma_event(&self, name: &str, data: arma_rs::Value) {
-        let event = ArmaEvent::Event {
-            name: name.to_owned(),
-            params: data,
-        };
-        let command = client::Command::ArmaEvent(event);
-        self.common.controller.command(command, None);
-    }
-
-    /// Broadcast an arma entity event over the network.
-    pub fn arma_entity_event(&self, net_id: NetEntityId, name: &str, data: arma_rs::Value) {
-        let event = ArmaEvent::EntityEvent {
-            id: net_id,
-            name: name.to_owned(),
-            params: data,
-        };
-        let command = client::Command::ArmaEvent(event);
-        self.common.controller.command(command, None);
-    }
-}
-
-/// Output channel for the network manager.
-pub type OutputReceiver<O> = Receiver<O>;
-
-struct OutputSender<O> {
-    output: Sender<O>,
-    output_enabled: bool,
-}
-
-impl<O> OutputSender<O> {
-    fn new() -> (Self, OutputReceiver<O>) {
-        let (sender, receiver) = unbounded();
-        (
-            Self {
-                output: sender,
-                output_enabled: true,
-            },
-            receiver,
-        )
-    }
-
-    fn disable(&mut self) {
-        info!("Disabling output");
-        self.output_enabled = false;
-    }
-
-    fn send(&mut self, output: O) {
-        if !self.output_enabled {
-            return;
-        };
-
-        if self.output.send(output).is_err() {
-            self.disable();
-            error!("Output channel is disconnected");
-        };
+    pub fn deserialize<'de, D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Instant, D::Error> {
+        let duration = Duration::deserialize(deserializer)?;
+        Instant::now()
+            .checked_sub(duration)
+            .ok_or_else(|| Error::custom("instant is out of bounds"))
     }
 }
