@@ -15,7 +15,7 @@ pub use output::Output;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum Message {
-    ReserveEntityNetId,
+    RequestEntityNetId,
 
     Common(CommonMessage),
 }
@@ -42,10 +42,11 @@ impl NetworkHandler for Handler {
     fn handle_event(&mut self, event: NetworkEvent) {
         match event {
             NetworkEvent::ConnectionAttempt(_, succeeded) => {
-                self.output.send(Output::ServerConnected(succeeded));
-                if !succeeded {
-                    self.network.stop();
-                }
+                self.output.send(if succeeded {
+                    Output::Connected
+                } else {
+                    Output::FailedToConnect
+                });
             }
 
             NetworkEvent::ConnectionLost(_, disconnected) => {
@@ -54,7 +55,6 @@ impl NetworkHandler for Handler {
                 } else {
                     Output::LostConnection
                 });
-                self.network.stop();
             }
 
             NetworkEvent::NewConnection(_) => {
@@ -65,8 +65,8 @@ impl NetworkHandler for Handler {
 
     fn handle_message(&mut self, conn: ConnectionId, message: Self::RecvMessage) {
         match message {
-            ServerMessage::ReservedNetId(id) => {
-                self.output.send(Output::ReservedNetId(id));
+            ServerMessage::ReservedEntityNetId(id) => {
+                self.output.send(Output::ReservedEntityNetId(id));
             }
 
             ServerMessage::Common(message) => match message {
@@ -87,15 +87,14 @@ impl NetworkHandler for Handler {
     fn handle_command(&mut self, command: Self::Command) {
         match command {
             Command::RequestEntityNetId => {
-                self.network.send(self.server, Message::ReserveEntityNetId);
+                self.network.send(self.server, Message::RequestEntityNetId);
             }
             Command::SendArmaEvent(event) => {
                 let message = CommonMessage::ArmaEvent(event);
                 self.network.send(self.server, message.into());
             }
-
-            Command::Disconnect => self.disconnect(),
             Command::PingLoop(interval) => self.ping_loop(interval),
+            Command::Shutdown => self.shutdown(),
         }
     }
 }
@@ -107,22 +106,17 @@ impl Handler {
         server: ConnectionId,
         ping: Option<Duration>,
     ) -> Self {
-        let ret = Self {
+        let handler = Self {
             network,
             output,
             server,
         };
 
         if let Some(ping) = ping {
-            ret.ping_loop(ping);
+            handler.ping_loop(ping);
         }
 
-        ret
-    }
-
-    fn disconnect(&self) {
-        self.network.remove(self.server);
-        self.network.stop();
+        handler
     }
 
     fn ping_loop(&self, interval: Duration) {
@@ -131,5 +125,11 @@ impl Handler {
 
         self.network
             .command(Command::PingLoop(interval), Some(interval));
+    }
+
+    fn shutdown(&self) {
+        self.network.remove(self.server);
+        self.network.stop();
+        self.output.send(Output::Shutdown);
     }
 }

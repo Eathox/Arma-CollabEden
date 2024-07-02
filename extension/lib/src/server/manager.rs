@@ -8,7 +8,7 @@ use crate::{
 
 #[derive(Debug)]
 pub enum Command {
-    Disconnect,
+    Shutdown,
     PingLoop(Duration),
 }
 
@@ -32,19 +32,19 @@ impl InstanceManager for Manager {
     }
 
     #[inline]
-    fn disconnect(&self) {
-        self.controller.command(Command::Disconnect, None);
+    fn stop(&self) {
+        self.controller.command(Command::Shutdown, None);
     }
 
     #[inline]
-    fn stop(&self) {
+    fn force_stop(&self) {
         self.controller.stop();
     }
 }
 
 impl Drop for Manager {
     fn drop(&mut self) {
-        self.stop();
+        self.force_stop();
     }
 }
 

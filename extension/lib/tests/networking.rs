@@ -4,12 +4,12 @@ use coden::{ClientOutput, InstanceManager, ManagerBuilder, ServerOutput};
 
 mod common;
 
-use common::{recv, setup_test_network, LOCAL_ADDR};
+use common::{recv, setup_test_network, TEST_ADDR};
 
 #[test]
 fn connect() {
     let (server, server_out) = ManagerBuilder::default()
-        .host_on(LOCAL_ADDR)
+        .host_on(TEST_ADDR)
         .with_ping(None)
         .startup()
         .unwrap();
@@ -24,7 +24,22 @@ fn connect() {
         recv(&server_out),
         ServerOutput::ClientConnected(conn) if conn.addr() == client.addr()
     );
-    assert_eq!(recv(&client_out), ClientOutput::ServerConnected(true));
+    assert_eq!(recv(&client_out), ClientOutput::Connected);
+
+    assert_eq!(server_out.len(), 0);
+    assert_eq!(client_out.len(), 0);
+}
+
+#[test]
+fn failed_connect() {
+    let (_client, client_out) = ManagerBuilder::default()
+        .connect_to((TEST_ADDR.ip(), 2300).into())
+        .with_ping(None)
+        .startup()
+        .unwrap();
+
+    assert_eq!(recv(&client_out), ClientOutput::FailedToConnect);
+    assert_eq!(client_out.len(), 0);
 }
 
 #[test]
@@ -33,13 +48,15 @@ fn disconnect() {
     let (_client_b, client_b_out) = clients.pop().unwrap();
     let (client_a, client_a_out) = clients.pop().unwrap();
 
-    client_a.disconnect();
+    client_a.stop();
+    assert_matches!(recv(&client_a_out), ClientOutput::Shutdown);
     assert_matches!(
         recv(&server_out),
         ServerOutput::ClientDisconnected(conn) if conn.addr() == client_a.addr()
     );
 
-    server.disconnect();
+    server.stop();
+    assert_matches!(recv(&server_out), ServerOutput::Shutdown);
     assert_matches!(recv(&client_b_out), ClientOutput::ServerDisconnected);
 
     assert_eq!(server_out.len(), 0);

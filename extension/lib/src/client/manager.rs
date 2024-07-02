@@ -11,7 +11,7 @@ pub enum Command {
     RequestEntityNetId,
     SendArmaEvent(ArmaEvent),
 
-    Disconnect,
+    Shutdown,
     PingLoop(Duration),
 }
 
@@ -36,19 +36,19 @@ impl InstanceManager for Manager {
     }
 
     #[inline]
-    fn disconnect(&self) {
-        self.controller.command(Command::Disconnect, None);
+    fn stop(&self) {
+        self.controller.command(Command::Shutdown, None);
     }
 
     #[inline]
-    fn stop(&self) {
+    fn force_stop(&self) {
         self.controller.stop();
     }
 }
 
 impl Drop for Manager {
     fn drop(&mut self) {
-        self.stop();
+        self.force_stop();
     }
 }
 
@@ -67,8 +67,10 @@ impl Manager {
         }
     }
 
-    /// Reserve a unused unique entity network id, the id is returned by [`ClientOutput::EntityNetId`].
-    pub fn reserve_net_id(&self) {
+    /// Reserve a unused unique entity network id, the id is returned by [`ClientOutput::ReservedEntityNetId`].
+    ///
+    /// [`ClientOutput::ReservedEntityNetId`]: crate::ClientOutput::ReservedEntityNetId
+    pub fn reserve_entity_net_id(&self) {
         self.controller.command(Command::RequestEntityNetId, None);
     }
 

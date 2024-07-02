@@ -7,8 +7,7 @@ use crate::NetEntityId;
 #[derive(Debug, PartialEq)]
 pub enum Output {
     /// Unique entity net id reserved by this client.
-    ReservedNetId(NetEntityId),
-
+    ReservedEntityNetId(NetEntityId),
     /// Arma event.
     ArmaEvent {
         /// Event name.
@@ -26,14 +25,19 @@ pub enum Output {
         params: arma_rs::Value,
     },
 
-    /// Attempted to connect to the server, `true` if connected.
-    ServerConnected(bool),
+    /// Ping result from the server.
+    Ping(Duration),
     /// Server disconnected.
     ServerDisconnected,
+
+    /// Connected to the server.
+    Connected,
+    /// Failed to connect to the server.
+    FailedToConnect,
     /// Lost connection to the server.
     LostConnection,
-    /// Ping to the server.
-    Ping(Duration),
+    /// Client shutdown.
+    Shutdown,
 }
 
 impl From<ArmaEvent> for Output {

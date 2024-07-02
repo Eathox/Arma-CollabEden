@@ -16,7 +16,7 @@ pub use output::Output;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum Message {
-    ReservedNetId(NetEntityId),
+    ReservedEntityNetId(NetEntityId),
 
     Common(CommonMessage),
 }
@@ -65,9 +65,10 @@ impl NetworkHandler for Handler {
 
     fn handle_message(&mut self, conn: ConnectionId, message: Self::RecvMessage) {
         match message {
-            ClientMessage::ReserveEntityNetId => {
+            ClientMessage::RequestEntityNetId => {
                 let net_id = self.net_id.next();
-                self.network.send(conn, Message::ReservedNetId(net_id));
+                self.network
+                    .send(conn, Message::ReservedEntityNetId(net_id));
             }
 
             ClientMessage::Common(message) => match message {
@@ -87,8 +88,8 @@ impl NetworkHandler for Handler {
 
     fn handle_command(&mut self, command: Self::Command) {
         match command {
-            Command::Disconnect => self.disconnect(),
             Command::PingLoop(interval) => self.ping_loop(interval),
+            Command::Shutdown => self.shutdown(),
         }
     }
 }
@@ -99,7 +100,7 @@ impl Handler {
         output: OutputSender<Output>,
         ping: Option<Duration>,
     ) -> Self {
-        let ret = Self {
+        let handler = Self {
             network,
             output,
             clients: vec![],
@@ -107,10 +108,10 @@ impl Handler {
         };
 
         if let Some(ping) = ping {
-            ret.ping_loop(ping);
+            handler.ping_loop(ping);
         }
 
-        ret
+        handler
     }
 
     fn propagate(&self, origin: ConnectionId, f: impl Fn() -> Message) {
@@ -121,13 +122,6 @@ impl Handler {
         }
     }
 
-    fn disconnect(&self) {
-        for client in &self.clients {
-            self.network.remove(*client);
-        }
-        self.network.stop();
-    }
-
     fn ping_loop(&self, interval: Duration) {
         for client in &self.clients {
             let message = CommonMessage::Ping(PingTimer::new());
@@ -136,5 +130,13 @@ impl Handler {
 
         self.network
             .command(Command::PingLoop(interval), Some(interval));
+    }
+
+    fn shutdown(&self) {
+        for client in &self.clients {
+            self.network.remove(*client);
+        }
+        self.network.stop();
+        self.output.send(Output::Shutdown);
     }
 }

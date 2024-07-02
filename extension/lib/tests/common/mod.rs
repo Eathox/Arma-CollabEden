@@ -12,7 +12,7 @@ use coden::{
     ServerOutput,
 };
 
-pub const LOCAL_ADDR: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+pub const TEST_ADDR: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
 
 #[allow(clippy::type_complexity)]
 pub fn setup_test_network(
@@ -22,7 +22,7 @@ pub fn setup_test_network(
     (ServerManager, OutputReceiver<ServerOutput>),
     Vec<(ClientManager, OutputReceiver<ClientOutput>)>,
 ) {
-    let mut server_builder = ManagerBuilder::default().host_on(LOCAL_ADDR);
+    let mut server_builder = ManagerBuilder::default().host_on(TEST_ADDR);
     if !allow_ping {
         server_builder = server_builder.with_ping(None);
     }
@@ -41,7 +41,7 @@ pub fn setup_test_network(
             recv(&server_out),
             ServerOutput::ClientConnected(conn) if conn.addr() == client.addr()
         );
-        assert_eq!(recv(&client_out), ClientOutput::ServerConnected(true));
+        assert_eq!(recv(&client_out), ClientOutput::Connected);
 
         clients.push((client, client_out));
     }

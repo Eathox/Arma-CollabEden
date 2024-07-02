@@ -30,16 +30,19 @@ fn reserve_net_id() {
 
     let ((_server, _), clients) = setup_test_network(CLIENT_COUNT as usize, false);
     for (client, _) in &clients {
-        client.reserve_net_id();
+        client.reserve_entity_net_id();
     }
 
     let mut ids = BTreeSet::new();
     for (client, out) in clients.iter() {
-        assert_matches!(recv(out), ClientOutput::ReservedNetId(id) if ids.insert(id));
+        assert_matches!(recv(out), ClientOutput::ReservedEntityNetId(id) if ids.insert(id));
+
+        assert_eq!(out.len(), 0);
         client.stop(); // Speeds up the test
     }
 
     assert_eq!(ids.last().map(|&id| id.id()), Some(CLIENT_COUNT - 1));
+    // assert_eq!(server_out.len(), 0); //Not useful and filled with disconnects
 }
 
 #[test]
@@ -63,6 +66,7 @@ fn arma_event() {
     assert_eq!(server_out.len(), 0);
     assert_eq!(client_a_out.len(), 0);
     assert_eq!(client_b_out.len(), 0);
+    assert_eq!(client_c_out.len(), 0);
 }
 
 #[test]
@@ -72,8 +76,8 @@ fn arma_entity_event() {
     let (_client_b, client_b_out) = clients.pop().unwrap();
     let (client_a, client_a_out) = clients.pop().unwrap();
 
-    client_a.reserve_net_id();
-    let ClientOutput::ReservedNetId(net_id) = recv(&client_a_out) else {
+    client_a.reserve_entity_net_id();
+    let ClientOutput::ReservedEntityNetId(net_id) = recv(&client_a_out) else {
         panic!("Event should be an EntityNetId");
     };
 

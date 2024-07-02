@@ -42,6 +42,8 @@ impl<H: NetworkHandler> NetworkController<H> {
     /// # Errors
     /// Returns an error if the address couldn't be used for a connection attempt.\
     /// *Note: this will never error if the connection failed, instead that is reflected in [`NetworkEvent::ConnectionAttempt`].*
+    ///
+    /// [`NetworkEvent::ConnectionAttempt`]: super::NetworkEvent::ConnectionAttempt
     pub fn connect(&self, addr: SocketAddr) -> Result<(ConnectionId, SocketAddr)> {
         let (conn, new_addr) = self
             .0
@@ -55,6 +57,8 @@ impl<H: NetworkHandler> NetworkController<H> {
     /// Remove the given connection. Does not emit a [`NetworkEvent::ConnectionLost`] to the local event loop.
     ///
     /// Returns `false` if the connection is already removed.
+    ///
+    /// [`NetworkEvent::ConnectionLost`]: super::NetworkEvent::ConnectionLost
     pub fn remove(&self, conn: ConnectionId) -> bool {
         let id = conn.0.resource_id();
         if self.0.network().is_ready(id) == Some(true) {

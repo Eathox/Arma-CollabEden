@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use crossbeam_channel::{unbounded, Receiver, Sender};
 
 /// Output channel used by the network handler.
@@ -5,7 +7,7 @@ pub type OutputReceiver<O> = Receiver<O>;
 
 pub struct OutputSender<O> {
     output: Sender<O>,
-    output_enabled: bool,
+    output_enabled: Cell<bool>,
 }
 
 impl<O> OutputSender<O> {
@@ -14,19 +16,19 @@ impl<O> OutputSender<O> {
         (
             Self {
                 output: sender,
-                output_enabled: true,
+                output_enabled: Cell::new(true),
             },
             receiver,
         )
     }
 
-    fn disable(&mut self) {
+    fn disable(&self) {
         info!("Disabling output");
-        self.output_enabled = false;
+        self.output_enabled.replace(false);
     }
 
-    pub(crate) fn send(&mut self, output: O) {
-        if !self.output_enabled {
+    pub fn send(&self, output: O) {
+        if !self.output_enabled.get() {
             return;
         };
 

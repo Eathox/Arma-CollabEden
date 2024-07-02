@@ -15,21 +15,23 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-mod builder;
-mod client;
 mod entity_id;
 mod error;
 mod networking;
 mod output;
-mod server;
 
-pub use builder::ManagerBuilder;
-pub use client::{Manager as ClientManager, Output as ClientOutput};
 pub use entity_id::NetEntityId;
 pub use error::{Error, Result};
 pub use networking::ConnectionId;
 pub use output::OutputReceiver;
 use output::OutputSender;
+
+mod builder;
+mod client;
+mod server;
+
+pub use builder::ManagerBuilder;
+pub use client::{Manager as ClientManager, Output as ClientOutput};
 pub use server::{Manager as ServerManager, Output as ServerOutput};
 
 /// Manager responsible for a networking instance, constructed with [`ManagerBuilder`].
@@ -43,11 +45,18 @@ pub trait InstanceManager {
     #[must_use]
     fn server_addr(&self) -> SocketAddr;
 
-    /// Disconnect the instance.
-    fn disconnect(&self);
-
-    /// Stop the instance.
+    /// Gracefully shutdown the instance.
     fn stop(&self);
+    /// Forcefully shutdown the instance.
+    fn force_stop(&self);
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+enum CommonMessage {
+    ArmaEvent(ArmaEvent),
+
+    Ping(PingTimer),
+    Pong(PingTimer),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -61,14 +70,6 @@ enum ArmaEvent {
         name: String,
         params: arma_rs::Value,
     },
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-enum CommonMessage {
-    ArmaEvent(ArmaEvent),
-
-    Ping(PingTimer),
-    Pong(PingTimer),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
